@@ -54,3 +54,16 @@ input:focus-visible {
     background-color: rgba(15, 23, 42, 0.9);
   }
 }
+
+/* Light theme specific scrollbar */
+.light .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
