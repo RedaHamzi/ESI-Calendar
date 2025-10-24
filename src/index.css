@@ -2,12 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area padding for mobile devices */
+/* Enhanced Safe Area Padding - Using fixed values */
 .safe-area-padding {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: 0px;
+  padding-right: 0px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+/* Safe area top only */
+.safe-area-top {
+  padding-top: 20px;
+}
+
+/* Safe area bottom only */
+.safe-area-bottom {
+  padding-bottom: 20px;
+}
+
+/* Mobile-specific safe areas */
+@media (max-width: 768px) {
+  .safe-area-padding {
+    padding-top: 25px; /* Extra padding for mobile status bars */
+    padding-bottom: 25px; /* Extra padding for mobile navigation */
+  }
+  
+  .safe-area-top {
+    padding-top: 25px;
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: 25px;
+  }
+}
+
+/* For very small mobile devices (phones) */
+@media (max-width: 480px) {
+  .safe-area-padding {
+    padding-top: 30px; /* Even more padding for notch devices */
+    padding-bottom: 30px;
+  }
+  
+  .safe-area-top {
+    padding-top: 30px;
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: 30px;
+  }
 }
 
 /* Custom scrollbar for dropdown */
@@ -55,6 +97,37 @@ input:focus-visible {
   }
 }
 
+/* Prevent text selection on mobile */
+.no-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Improved touch targets for mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Smooth scrolling for iOS */
+.scroll-smooth {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Light theme specific scrollbar */
 .light .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.05);
@@ -66,4 +139,77 @@ input:focus-visible {
 
 .light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.5);
+}
+
+/* Fix for mobile viewport height */
+.min-h-screen-mobile {
+  min-height: 100vh;
+}
+
+/* Additional mobile spacing utilities */
+.mobile-pt {
+  padding-top: 20px;
+}
+
+.mobile-pb {
+  padding-bottom: 20px;
+}
+
+.mobile-py {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .mobile-pt {
+    padding-top: 25px;
+  }
+  
+  .mobile-pb {
+    padding-bottom: 25px;
+  }
+  
+  .mobile-py {
+    padding-top: 25px;
+    padding-bottom: 25px;
+  }
+}
+
+/* Content area spacing */
+.content-area {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+  .content-area {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+}
+
+/* Header specific spacing */
+.header-spacing {
+  padding-top: 15px;
+  padding-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .header-spacing {
+    padding-top: 20px;
+    padding-bottom: 15px;
+  }
+}
+
+/* Footer specific spacing */
+.footer-spacing {
+  padding-top: 10px;
+  padding-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+  .footer-spacing {
+    padding-top: 15px;
+    padding-bottom: 20px;
+  }
 }
