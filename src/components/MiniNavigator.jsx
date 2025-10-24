@@ -1,14 +1,32 @@
 import { classes, groups } from "../data/data";
 
 const MiniNavigator = ({ type, setType, setList }) => {
-	return (
-		<div className="relative mt-3">
-			<div className="w-[90vw] flex items-center justify-center md:w-[65vw] lg:w-[40vw] gap-2 relative">
-				<input className={`text-sm md:text-lg btn w-[49.5%] px-4 pb-3 pt-3 md:pt-2 border-2 border-orange focus:outline-none rounded-2xl ${(type == 'class') ? 'bg-black hover:bg-black text-white' : 'bg-white hover:bg-white text-dark'}`} onClick={() => { setType("class"); setList(classes[0]); }} value="Classes" type="button" />
-				<input className={`text-sm md:text-lg btn w-[49.5%] px-4 pb-3 pt-3 md:pt-2 border-2 border-orange focus:outline-none rounded-2xl ${(type == 'group') ? 'bg-black hover:bg-black text-white' : 'bg-white hover:bg-white text-dark'}`} onClick={() => { setType("group"); setList(groups[0]); }} value="Groups" type="button" />
-			</div>
-		</div>
-	);
+  return (
+    <div className="relative">
+      <div className="flex items-center bg-white/10 backdrop-blur-lg rounded-2xl p-1 border border-white/20">
+        <button
+          className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
+            type === 'class' 
+              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25' 
+              : 'text-purple-100 hover:text-white'
+          }`}
+          onClick={() => { setType("class"); setList(classes[0]); }}
+        >
+          📚 Classes
+        </button>
+        <button
+          className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
+            type === 'group' 
+              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25' 
+              : 'text-purple-100 hover:text-white'
+          }`}
+          onClick={() => { setType("group"); setList(groups[0]); }}
+        >
+          👥 Groups
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default MiniNavigator;
