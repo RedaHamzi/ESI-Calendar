@@ -193,6 +193,7 @@ export async function syncAll(urls, onProgress, options) {
 
       if (i < list.length - 1) {
         await delay(FETCH_DELAY_MS);
+        await new Promise((r) => setTimeout(r, 0)); // yield to UI
       }
     }
   } catch (err) {

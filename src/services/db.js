@@ -194,7 +194,16 @@ export async function replaceSessionsForCalendar(db, calUrl, sessions, opts) {
     { statement: 'DELETE FROM sessions WHERE cal_url = ?', values: [calUrl] },
     ...list.map((session) => ({ statement: INSERT_SQL, values: sessionToRow(session) })),
   ];
-  await db.executeSet(stmts);
+  // Chunked so a big calendar doesn't block the JS thread / SQLite bridge
+  // in one giant batch. The DELETE rides in the first chunk; each
+  // executeSet call keeps its own transaction (never wrap manually).
+  const CHUNK = 500;
+  for (let i = 0; i < stmts.length; i += CHUNK) {
+    await db.executeSet(stmts.slice(i, i + CHUNK));
+    if (i + CHUNK < stmts.length) {
+      await new Promise((r) => setTimeout(r, 0)); // yield to UI
+    }
+  }
   return list.length;
 }
 
