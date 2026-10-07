@@ -1,6 +1,6 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
-import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds } from './db';
+import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds, rebuildTeachersTable } from './db';
 import { emitSync } from './syncEvents';
 import { useAppStore } from '../store/appStore';
 
@@ -221,6 +221,22 @@ export async function syncAll(urls, onProgress, options) {
     await useAppStore.getState().refreshCounts();
   } catch (e) {
     console.error(`syncAll/refreshCounts: ${e && e.message ? e.message : e}`);
+  }
+  // Refresh the materialized teacher list once per sync (not per
+  // calendar). Timed so C.4 before/after can be compared on device.
+  try {
+    const db = useAppStore.getState().db;
+    if (db) {
+      const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      await rebuildTeachersTable(db);
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      console.log(`[sync] rebuildTeachersTable ms=${Math.round(now - t0)}`);
+      // Clear the cached list so TeachersPage re-queries the fresh table.
+      useAppStore.getState().setTeachers(null);
+      await useAppStore.getState().refreshCounts();
+    }
+  } catch (e) {
+    console.error(`syncAll/rebuildTeachersTable: ${e && e.message ? e.message : e}`);
   }
   if (summary.failed > 0 && summary.updated === 0 && summary.unchanged === 0) {
     useAppStore.getState().setSyncError(`${summary.failed} calendar(s) failed`);

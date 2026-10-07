@@ -18,6 +18,10 @@ export const useAppStore = create((set, get) => ({
   syncProgress: { ...initialSyncProgress },
   syncError: null,
 
+  // Teacher list cache (C.4): computed once, re-queried only after a sync.
+  teachers: null,
+  setTeachers: (t) => set({ teachers: t }),
+
   // Actions
   setDb: (db) => set({ db, dbReady: true, dbError: null }),
   setDbError: (e) => set({ dbError: String(e && e.message ? e.message : e), dbReady: false }),
@@ -29,7 +33,7 @@ export const useAppStore = create((set, get) => ({
       return;
     }
     try {
-      const { countSessions, getSyncOverview } = await import("../services/db");
+      const { countSessions, getSyncOverview, listTeachers } = await import("../services/db");
       const sessionCount = await countSessions(db);
       const overview = await getSyncOverview(db);
       set({
@@ -37,6 +41,18 @@ export const useAppStore = create((set, get) => ({
         calendarsSynced: Number(overview.calendars) || 0,
         lastSyncedAt: overview.lastSynced != null ? Number(overview.lastSynced) : null,
       });
+      // Warm the teacher cache here so TeachersPage mounts instantly.
+      // Skipped when the DB is empty (nothing to list yet).
+      if (sessionCount > 0) {
+        try {
+          const teachers = await listTeachers(db);
+          set({ teachers });
+        } catch (e) {
+          console.error(`appStore/refreshCounts/listTeachers: ${e && e.message ? e.message : e}`);
+        }
+      } else {
+        set({ teachers: [] });
+      }
     } catch (e) {
       console.error(`appStore/refreshCounts: ${e && e.message ? e.message : e}`);
     }
@@ -57,6 +73,7 @@ export const useAppStore = create((set, get) => ({
       syncStatus: "idle",
       syncProgress: { ...initialSyncProgress },
       syncError: null,
+      teachers: null,
     }),
 }));
 

@@ -31,6 +31,12 @@ const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_sessions_type ON sessions(session_type)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_starts ON sessions(starts_at)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_url ON sessions(cal_url)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_starts ON sessions(cal_url, starts_at)`,
+  // Materialized teacher list: SELECT DISTINCT over ~25k rows is slow on
+  // device, so the post-sync rebuild keeps this table fresh and
+  // listTeachers() becomes a cheap ordered scan.
+  `CREATE TABLE IF NOT EXISTS teachers (name TEXT PRIMARY KEY)`,
 ];
 
 const SESSION_COLUMNS = [
@@ -112,6 +118,11 @@ export async function ensureSchema(db) {
   } catch (e) {
     console.warn(`ensureSchema: teacher TRIM cleanup skipped: ${e?.message || e}`);
   }
+  try {
+    await db.execute('UPDATE sessions SET subject = TRIM(subject) WHERE subject IS NOT NULL AND subject != TRIM(subject)');
+  } catch (e) {
+    console.warn(`ensureSchema: subject TRIM cleanup skipped: ${e?.message || e}`);
+  }
 }
 
 function rowsOf(result) {
@@ -175,12 +186,13 @@ export async function upsertCalendarMeta(db, meta) {
 
 function sessionToRow(session) {
   const teacher = session.teacher == null ? null : String(session.teacher).trim() || null;
+  const subject = session.subject == null ? null : String(session.subject).trim() || null;
   return [
     session.uid,
     session.recurrence_id == null ? '' : String(session.recurrence_id),
     session.cal_url,
     session.calname || null,
-    session.subject || null,
+    subject,
     session.session_type || null,
     teacher,
     session.rooms == null ? '[]' : String(session.rooms),
@@ -269,9 +281,14 @@ export async function queryUpcomingByType(db, type, limit) {
 
 // Sessions for the given calendar URLs inside [minSec, maxSec] (unix
 // seconds, inclusive). All values parameterized; urls beyond SQLite's
-// variable limit are chunked.
+// variable limit are chunked. NOTE: both sync (getCalendarUrls) and all
+// query call-sites build URLs via calendarIdToIcsUrl(), which strips
+// trailing "&" — so stored cal_url values and query inputs share the same
+// form. If this query ever returns 0 rows on a synced DB, compare a
+// SELECT DISTINCT cal_url sample against the query inputs first.
 export async function querySessionsByCalUrls(db, urls, minSec, maxSec) {
   const list = (Array.isArray(urls) ? urls : []).filter((u) => typeof u === 'string' && u);
+  console.log(`[db] querySessionsByCalUrls urls=${list.length} min=${minSec} max=${maxSec} first=${JSON.stringify(list.slice(0, 2))}`);
   if (list.length === 0) return [];
   const out = [];
   const CHUNK = 400;
@@ -285,6 +302,7 @@ export async function querySessionsByCalUrls(db, urls, minSec, maxSec) {
     out.push(...rowsOf(result));
   }
   out.sort((a, b) => Number(a.starts_at) - Number(b.starts_at));
+  console.log(`[db] querySessionsByCalUrls rows=${out.length}`);
   return out;
 }
 
@@ -294,11 +312,14 @@ export async function queryGroupWeekByCalname(db, calname, weekStartMs, weekEndM
   if (!calname) return [];
   const minSec = Math.floor(Number(weekStartMs) / 1000);
   const maxSec = Math.floor(Number(weekEndMs) / 1000);
+  console.log(`[db] queryGroupWeekByCalname calname=${JSON.stringify(calname)} min=${minSec} max=${maxSec}`);
   const result = await db.query(
     'SELECT * FROM sessions WHERE calname = ? AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC',
     [calname, minSec, maxSec],
   );
-  return rowsOf(result);
+  const rows = rowsOf(result);
+  console.log(`[db] queryGroupWeekByCalname rows=${rows.length}`);
+  return rows;
 }
 
 function escapeLike(value) {
@@ -306,10 +327,37 @@ function escapeLike(value) {
 }
 
 export async function listTeachers(db) {
+  const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  try {
+    const fast = await db.query('SELECT name AS teacher FROM teachers ORDER BY name');
+    const cached = rowsOf(fast);
+    if (cached.length > 0) {
+      const names = cached.map((row) => row.teacher);
+      const ms = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0);
+      console.log(`[db] listTeachers via teachers table rows=${names.length} ms=${ms}`);
+      return names;
+    }
+  } catch (e) {
+    console.warn(`listTeachers: teachers-table read failed, falling back to DISTINCT: ${e?.message || e}`);
+  }
   const result = await db.query(
     "SELECT DISTINCT TRIM(teacher) AS teacher FROM sessions WHERE teacher IS NOT NULL AND TRIM(teacher) != '' ORDER BY teacher",
   );
-  return rowsOf(result).map((row) => row.teacher);
+  const names = rowsOf(result).map((row) => row.teacher);
+  const ms = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0);
+  console.log(`[db] listTeachers via DISTINCT rows=${names.length} ms=${ms}`);
+  return names;
+}
+
+// Rebuild the materialized teachers table after a sync. One DELETE + one
+// INSERT-SELECT; callers (syncAll) invoke this once per sync, not per
+// calendar. Failures are logged by the caller — a stale list is better
+// than a failed sync.
+export async function rebuildTeachersTable(db) {
+  await db.execute('DELETE FROM teachers');
+  await db.execute(
+    "INSERT OR IGNORE INTO teachers (name) SELECT DISTINCT TRIM(teacher) FROM sessions WHERE teacher IS NOT NULL AND TRIM(teacher) != ''",
+  );
 }
 
 export async function queryTeacherWeek(db, teacher, weekStartMs, weekEndMs) {

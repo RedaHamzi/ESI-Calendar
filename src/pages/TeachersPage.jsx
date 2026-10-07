@@ -37,6 +37,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   const [syncActive, setSyncActive] = useState(() => isSyncing());
   const [refreshSeq, setRefreshSeq] = useState(0);
   const dbReady = useAppStore((s) => s.dbReady);
+  const cachedTeachers = useAppStore((s) => s.teachers);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -53,6 +54,14 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     let cancelled = false;
     const load = async () => {
       try {
+        // C.4: reuse the store cache when a sync hasn't invalidated it.
+        if (cachedTeachers && refreshSeq === 0) {
+          if (!cancelled) {
+            setLoadError(null);
+            setTeachers(cachedTeachers);
+          }
+          return;
+        }
         const db = useAppStore.getState().db;
         if (!db) {
           if (!cancelled) setLoadError("Database is not ready yet.");
@@ -61,7 +70,11 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
         const { listTeachers } = await import("../services/db");
         if (cancelled) return;
         setLoadError(null);
-        setTeachers(await listTeachers(db));
+        const names = await listTeachers(db);
+        if (!cancelled) {
+          setTeachers(names);
+          useAppStore.getState().setTeachers(names);
+        }
       } catch (e) {
         console.error(`TeachersPage/loadTeachers: ${e && e.message ? e.message : e}`);
         if (!cancelled) setLoadError((e && e.message) || String(e));
@@ -71,7 +84,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     return () => {
       cancelled = true;
     };
-  }, [refreshSeq, dbReady]);
+  }, [refreshSeq, dbReady, cachedTeachers]);
 
   // Re-query when a sync lands: the mount-time query races the silent
   // first-launch sync, so without this the list stays stale-empty.
