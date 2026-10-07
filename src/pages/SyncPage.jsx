@@ -108,7 +108,7 @@ const SyncPage = ({ isDark, onBack }) => {
       setCounts({ total, month, week });
       setOverview({ ...(await getSyncOverview(db)), total });
     } catch (e) {
-      setError(e.message || String(e));
+      setError("Couldn't read the local database yet. Try reopening the app.");
     }
   };
 
@@ -232,11 +232,16 @@ const SyncPage = ({ isDark, onBack }) => {
             )}
 
             <p className={`text-xs text-center mt-3 ${mutedClass}`}>
-              Last synced:{" "}
-              {formatRelativeTime(overview && overview.lastSynced)}
-              {overview && overview.calendars
-                ? ` · ${overview.calendars} calendars`
-                : ""}
+              {overview && overview.lastSynced ? (
+                <>
+                  Last synced: {formatRelativeTime(overview.lastSynced)}
+                  {overview.calendars
+                    ? ` · ${overview.calendars} calendars`
+                    : ""}
+                </>
+              ) : (
+                "Not synced yet — tap Sync now to save schedules offline."
+              )}
             </p>
           </div>
 
