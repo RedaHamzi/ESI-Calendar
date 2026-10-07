@@ -4,6 +4,7 @@ import { FiUser, FiSearch, FiWifiOff } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
 import WeekView from "../components/WeekView";
+import PullToRefresh from "../components/PullToRefresh";
 import { getSchoolWeekSunday } from "../utils/week";
 import { onSync, isSyncing } from "../services/syncEvents";
 
@@ -127,6 +128,10 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
 
   const bounds = useMemo(() => weekBounds(weekOffset), [weekOffset]);
 
+  const handleRefresh = async () => {
+    setRefreshSeq((n) => n + 1);
+  };
+
   // First-time setup: the DB is still empty because the background sync
   // hasn't landed yet. Show progress instead of a dead "no data" state.
   const showSyncing = syncActive && !query && filtered.length === 0;
@@ -143,6 +148,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
           onBack={() => setSelected(null)}
         />
         <main className="content-area page-content px-4">
+          <PullToRefresh onRefresh={handleRefresh}>
           <div className="max-w-md mx-auto space-y-4">
             <div
               className={`flex items-center rounded-2xl p-1 border ${cardClass}`}
@@ -192,6 +198,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
               )}
             </div>
           </div>
+          </PullToRefresh>
         </main>
       </div>
     );
@@ -205,6 +212,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
         action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
       <main className="content-area page-content px-4">
+        <PullToRefresh onRefresh={handleRefresh}>
         <div className="max-w-md mx-auto space-y-4">
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2">
@@ -303,6 +311,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
             </div>
           )}
         </div>
+        </PullToRefresh>
       </main>
     </div>
   );

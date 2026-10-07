@@ -189,7 +189,7 @@ function App() {
   return (
     <div className={`${themeClasses} h-[100vh] flex flex-col overflow-hidden`}>
       {/* Main content scrolls; header (per page) and tab bar stay fixed */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overscroll-y-contain">
         <div className={tab === "schedule" ? "" : "hidden"}>
           <SchedulePage
             list={list}

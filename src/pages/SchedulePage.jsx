@@ -5,12 +5,43 @@ import SearchBar from "../components/SearchBar";
 import MiniNavigator from "../components/MiniNavigator";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
+import PullToRefresh from "../components/PullToRefresh";
+import { isSyncing } from "../services/syncEvents";
 
 const OfflineSchedule = lazy(() => import("../components/OfflineSchedule"));
+
+function urlsForSelection(list, type, toUrl) {
+  if (!list) return [];
+  if (type === "class" && typeof list.src === "string") {
+    return [toUrl(list.src)];
+  }
+  if (Array.isArray(list.src)) {
+    return list.src
+      .filter((id) => typeof id === "string" && id.trim())
+      .map((id) => toUrl(id));
+  }
+  return [];
+}
 
 const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffline, onPickScheduleMode, onGoSync }) => {
   const nextMode = isOffline ? "online" : "offline";
   const modeLabel = isOffline ? "Offline" : "Online";
+
+  // Pull-to-refresh: sync just the selected calendar(s) with the last used
+  // range, then the sync-done event refreshes every subscribed page.
+  // Skipped while another sync is in flight (writes would interleave).
+  const handleRefresh = async () => {
+    if (isSyncing()) return;
+    const sync = await import("../services/sync");
+    let range = sync.DEFAULT_SYNC_RANGE;
+    try {
+      range = localStorage.getItem("esi-sync-range") || range;
+    } catch (e) {
+      // keep default
+    }
+    const urls = urlsForSelection(list, type, sync.calendarIdToIcsUrl);
+    await sync.syncAll(urls.length > 0 ? urls : sync.getCalendarUrls(), undefined, { range });
+  };
   return (
     <div>
       <PageHeader
@@ -41,6 +72,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
         }
       />
       <main className="content-area page-content px-4">
+        <PullToRefresh onRefresh={handleRefresh}>
         <div className="max-w-md mx-auto">
           {/* Search and Navigation */}
           <div className="space-y-4 mb-6">
@@ -151,6 +183,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
           </div>
           )}
         </div>
+        </PullToRefresh>
       </main>
     </div>
   );

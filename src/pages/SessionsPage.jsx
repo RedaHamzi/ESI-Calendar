@@ -9,6 +9,7 @@ import {
   formatTimeMs,
 } from "../utils/week";
 import { onSync, isSyncing } from "../services/syncEvents";
+import PullToRefresh from "../components/PullToRefresh";
 
 const TYPE_OPTIONS = ["All", "Cours", "TD", "TP"];
 const RANGE_OPTIONS = [
@@ -134,6 +135,10 @@ const SessionsPage = ({
     : "bg-white border-purple-200 text-gray-900";
 
   const bounds = useMemo(() => rangeBounds(rangeId), [rangeId]);
+
+  const handleRefresh = async () => {
+    setRefreshSeq((n) => n + 1);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -301,6 +306,7 @@ const SessionsPage = ({
         action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
       <main className="content-area page-content px-4">
+        <PullToRefresh onRefresh={handleRefresh}>
         <div className="max-w-md mx-auto space-y-4">
           <div className={`flex items-center rounded-2xl p-1 border ${cardClass}`}>
             {TYPE_OPTIONS.map((t) => (
@@ -447,6 +453,7 @@ const SessionsPage = ({
             </div>
           )}
         </div>
+        </PullToRefresh>
       </main>
       {renderDetailSheet()}
     </div>

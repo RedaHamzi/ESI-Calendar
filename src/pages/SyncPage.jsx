@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiRefreshCw, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
+import PullToRefresh from "../components/PullToRefresh";
 import { classes, groups } from "../data/data";
 import {
   openDb,
@@ -117,6 +118,7 @@ const SyncPage = ({ isDark, onBack }) => {
   }, []);
 
   const runSync = async (nextRange) => {
+    if (syncing) return;
     const chosen = nextRange || range;
     setRange(chosen);
     try {
@@ -160,6 +162,7 @@ const SyncPage = ({ isDark, onBack }) => {
     <div>
       <PageHeader title="Sync" isDark={isDark} onBack={onBack} />
       <main className="content-area page-content px-4">
+        <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
           <div className={`rounded-2xl p-4 border ${cardClass}`}>
             <p className={`text-sm font-semibold ${textClass}`}>
@@ -287,6 +290,7 @@ const SyncPage = ({ isDark, onBack }) => {
             </div>
           )}
         </div>
+        </PullToRefresh>
       </main>
     </div>
   );
