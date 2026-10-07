@@ -6,8 +6,9 @@ import ThemeToggle from "../components/ThemeToggle";
 import WeekView from "../components/WeekView";
 import PullToRefresh from "../components/PullToRefresh";
 import { getSchoolWeekSunday } from "../utils/week";
-import { onSync, isSyncing } from "../services/syncEvents";
+import { onSync } from "../services/syncEvents";
 import { useAppStore } from "../store/appStore";
+import { useAppState } from "../hooks/useAppState";
 
 const WEEK_OPTIONS = [
   { id: 0, label: "This week" },
@@ -34,10 +35,10 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [sessions, setSessions] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [syncActive, setSyncActive] = useState(() => isSyncing());
   const [refreshSeq, setRefreshSeq] = useState(0);
-  const dbReady = useAppStore((s) => s.dbReady);
+  const { online, hasData, dbReady, showSyncCTA, canQueryDb } = useAppState();
   const cachedTeachers = useAppStore((s) => s.teachers);
+  const syncStatus = useAppStore((s) => s.syncStatus);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -49,6 +50,9 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     : "bg-white/80 border-purple-200 text-gray-900 placeholder-purple-400";
   const rowClass = isDark ? "hover:bg-white/10" : "hover:bg-purple-50";
   const segInactive = isDark ? "text-purple-100" : "text-purple-600";
+  const spinnerClass = isDark
+    ? "border-white/30 border-t-white"
+    : "border-purple-200 border-t-purple-600";
 
   useEffect(() => {
     let cancelled = false;
@@ -80,30 +84,23 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
         if (!cancelled) setLoadError((e && e.message) || String(e));
       }
     };
-    if (dbReady) load();
+    if (canQueryDb) load();
+    else if (dbReady) {
+      // DB is ready but empty — nothing to list.
+      setTeachers([]);
+      setLoadError(null);
+    }
     return () => {
       cancelled = true;
     };
-  }, [refreshSeq, dbReady, cachedTeachers]);
+  }, [refreshSeq, dbReady, canQueryDb, cachedTeachers]);
 
-  // Re-query when a sync lands: the mount-time query races the silent
-  // first-launch sync, so without this the list stays stale-empty.
-  // Progress refreshes at most once per second so the list fills in live.
+  // Re-query when a user-triggered sync lands.
   useEffect(() => {
-    let lastProgress = 0;
     return onSync((event) => {
       if (!event) return;
-      if (event.type === "start") {
-        setSyncActive(true);
-      } else if (event.type === "done" || event.type === "error") {
-        setSyncActive(false);
+      if (event.type === "done" || event.type === "error") {
         setRefreshSeq((n) => n + 1);
-      } else if (event.type === "progress") {
-        const now = Date.now();
-        if (now - lastProgress >= 1000) {
-          lastProgress = now;
-          setRefreshSeq((n) => n + 1);
-        }
       }
     });
   }, []);
@@ -139,11 +136,11 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
         if (!cancelled) setSessions([]);
       }
     };
-    if (dbReady) load();
+    if (canQueryDb) load();
     return () => {
       cancelled = true;
     };
-  }, [selected, weekOffset, refreshSeq, dbReady]);
+  }, [selected, weekOffset, refreshSeq, canQueryDb]);
 
   const filtered = useMemo(() => {
     if (!Array.isArray(teachers)) return [];
@@ -158,12 +155,51 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     setRefreshSeq((n) => n + 1);
   };
 
-  // First-time setup: the DB is still empty because the background sync
-  // hasn't landed yet. Show progress instead of a dead "no data" state.
-  const showSyncing = syncActive && !query && filtered.length === 0;
-  const spinnerClass = isDark
-    ? "border-white/30 border-t-white"
-    : "border-purple-200 border-t-purple-600";
+  const renderEmptyCta = (title, body) => (
+    <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+      <div
+        className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
+          isDark ? "bg-indigo-600" : "bg-indigo-500"
+        }`}
+      >
+        <FiWifiOff size={22} className="text-white" />
+      </div>
+      <h2 className={`font-semibold text-lg ${textClass}`}>{title}</h2>
+      <p className={`text-sm mt-1 ${subClass}`}>{body}</p>
+      <button
+        type="button"
+        onClick={onGoSync}
+        aria-label="Sync database"
+        className={`mt-4 min-h-[48px] px-6 rounded-xl font-semibold text-white active:scale-[0.97] transition-transform ${
+          isDark ? "bg-indigo-600" : "bg-indigo-500"
+        }`}
+      >
+        Sync database
+      </button>
+    </div>
+  );
+
+  // E.4: global loading state while the DB connection opens.
+  if (!dbReady) {
+    return (
+      <div>
+        <PageHeader
+          title="Teachers"
+          isDark={isDark}
+          action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
+        />
+        <main className="content-area page-content px-4">
+          <div className="max-w-md mx-auto text-center py-10">
+            <span
+              aria-hidden="true"
+              className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${spinnerClass}`}
+            />
+            <p className={`text-sm mt-3 ${subClass}`}>Loading…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (selected) {
     return (
@@ -240,101 +276,96 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={handleRefresh}>
         <div className="max-w-md mx-auto space-y-4">
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2">
-              <FiSearch
-                size={18}
-                className={isDark ? "text-purple-400" : "text-purple-500"}
-              />
-            </div>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search teachers..."
-              aria-label="Search teachers"
-              className={`w-full min-h-[48px] pl-12 pr-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base ${inputClass}`}
-            />
-          </div>
-
-          {loadError && (
-            <p className="text-sm text-center text-red-400">{loadError}</p>
-          )}
-
-          {filtered.length > 0 ? (
-            <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>
-              {filtered.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    setSelected(name);
-                    setWeekOffset(0);
-                  }}
-                  aria-label={name}
-                  className={`w-full min-h-[56px] px-4 py-3 flex items-center gap-3 text-left border-b last:border-b-0 active:scale-[0.97] transition-transform ${
-                    isDark ? "border-white/10" : "border-purple-100"
-                  } ${rowClass}`}
-                >
-                  <span
-                    className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
-                      isDark ? "bg-indigo-600" : "bg-indigo-500"
-                    }`}
-                  >
-                    <FiUser size={18} className="text-white" />
-                  </span>
-                  <span className={`flex-1 font-medium truncate ${textClass}`}>
-                    {name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : showSyncing ? (
-            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
-              <span
-                aria-hidden="true"
-                className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${spinnerClass}`}
-              />
-              <h2 className={`font-semibold text-lg mt-3 ${textClass}`}>
-                Syncing… (first-time setup)
-              </h2>
-              <p className={`text-sm mt-1 ${subClass}`}>
-                Your schedules are downloading. The list fills in automatically.
-              </p>
-            </div>
-          ) : teachers === null && !query ? (
-            <p className={`text-sm text-center ${subClass}`}>
-              Loading teachers…
-            </p>
+          {/* CASE B/C/D: without synced data there is nothing to list. */}
+          {showSyncCTA || !hasData ? (
+            online
+              ? renderEmptyCta(
+                  "Database is empty.",
+                  "Sync the database to browse teachers offline.",
+                )
+              : renderEmptyCta(
+                  "No data available. Connect to the internet and sync to use the app offline.",
+                  "Your teachers will appear here after a sync.",
+                )
           ) : (
-            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
-              <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
-                  isDark ? "bg-indigo-600" : "bg-indigo-500"
-                }`}
-              >
-                <FiWifiOff size={22} className="text-white" />
+            <>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                  <FiSearch
+                    size={18}
+                    className={isDark ? "text-purple-400" : "text-purple-500"}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search teachers..."
+                  aria-label="Search teachers"
+                  className={`w-full min-h-[48px] pl-12 pr-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-base ${inputClass}`}
+                />
               </div>
-              <h2 className={`font-semibold text-lg ${textClass}`}>
-                {query ? "No teacher matches your search" : "No teacher data yet"}
-              </h2>
-              <p className={`text-sm mt-1 ${subClass}`}>
-                {query
-                  ? "Try a different name."
-                  : "Connect to the internet and sync to load teachers."}
-              </p>
-              {!query && (
-                <button
-                  type="button"
-                  onClick={onGoSync}
-                  className={`mt-4 min-h-[48px] px-6 rounded-xl font-semibold text-white active:scale-[0.97] transition-transform ${
-                    isDark ? "bg-indigo-600" : "bg-indigo-500"
-                  }`}
-                >
-                  Sync now
-                </button>
+
+              {loadError && (
+                <p className="text-sm text-center text-red-400">{loadError}</p>
               )}
-            </div>
+
+              {syncStatus === "running" && teachers === null && (
+                <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${spinnerClass}`}
+                  />
+                  <h2 className={`font-semibold text-lg mt-3 ${textClass}`}>
+                    Syncing…
+                  </h2>
+                  <p className={`text-sm mt-1 ${subClass}`}>
+                    Your schedules are downloading. The list fills in automatically.
+                  </p>
+                </div>
+              )}
+
+              {filtered.length > 0 ? (
+                <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>
+                  {filtered.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setSelected(name);
+                        setWeekOffset(0);
+                      }}
+                      aria-label={name}
+                      className={`w-full min-h-[56px] px-4 py-3 flex items-center gap-3 text-left border-b last:border-b-0 active:scale-[0.97] transition-transform ${
+                        isDark ? "border-white/10" : "border-purple-100"
+                      } ${rowClass}`}
+                    >
+                      <span
+                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+                          isDark ? "bg-indigo-600" : "bg-indigo-500"
+                        }`}
+                      >
+                        <FiUser size={18} className="text-white" />
+                      </span>
+                      <span className={`flex-1 font-medium truncate ${textClass}`}>
+                        {name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                teachers !== null && (
+                  <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+                    <h2 className={`font-semibold text-lg ${textClass}`}>
+                      No teacher matches your search
+                    </h2>
+                    <p className={`text-sm mt-1 ${subClass}`}>
+                      Try a different name.
+                    </p>
+                  </div>
+                )
+              )}
+            </>
           )}
         </div>
         </PullToRefresh>

@@ -32,8 +32,8 @@ const SECTIONS = [
     Icon: FiWifiOff,
     title: "How does offline work?",
     body: [
-      "The first time you open the app with internet, it quietly saves the full academic year in the background.",
-      "If you lose connection later, the Schedule tab shows the saved week automatically, with a note that you are offline.",
+      "After you sync once from More, then Sync, your schedules stay available offline from the data saved on your device.",
+      "If you lose connection later, switch the Schedule tab to Offline to see the saved week.",
       "To refresh or resize the saved data, open More, then Sync, and pick one year, one month or one week before tapping Sync now.",
     ],
   },

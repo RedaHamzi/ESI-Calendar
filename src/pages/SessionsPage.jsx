@@ -8,9 +8,10 @@ import {
   getSchoolWeekSunday,
   formatTimeMs,
 } from "../utils/week";
-import { onSync, isSyncing } from "../services/syncEvents";
+import { onSync } from "../services/syncEvents";
 import PullToRefresh from "../components/PullToRefresh";
 import { useAppStore } from "../store/appStore";
+import { useAppState } from "../hooks/useAppState";
 
 const TYPE_OPTIONS = ["All", "Cours", "TD", "TP"];
 const RANGE_OPTIONS = [
@@ -118,9 +119,8 @@ const SessionsPage = ({
   const [sessions, setSessions] = useState(null);
   const [detail, setDetail] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const [syncActive, setSyncActive] = useState(() => isSyncing());
   const [refreshSeq, setRefreshSeq] = useState(0);
-  const dbReady = useAppStore((s) => s.dbReady);
+  const { online, hasData, dbReady, showSyncCTA, canQueryDb } = useAppState();
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -176,31 +176,20 @@ const SessionsPage = ({
         }
       }
     };
-    if (!dbReady) return () => { cancelled = true; };
+    if (!canQueryDb) return () => { cancelled = true; };
     const timer = setTimeout(load, subject ? 250 : 0);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [sessionType, subject, bounds, refreshSeq, dbReady]);
+  }, [sessionType, subject, bounds, refreshSeq, canQueryDb]);
 
-  // Same race as Teachers: the mount-time query runs while the silent
-  // first-launch sync is still filling the DB. Re-run on sync events.
+  // Re-run the current filter when a user-triggered sync lands.
   useEffect(() => {
-    let lastProgress = 0;
     return onSync((event) => {
       if (!event) return;
-      if (event.type === "start") {
-        setSyncActive(true);
-      } else if (event.type === "done" || event.type === "error") {
-        setSyncActive(false);
+      if (event.type === "done" || event.type === "error") {
         setRefreshSeq((n) => n + 1);
-      } else if (event.type === "progress") {
-        const now = Date.now();
-        if (now - lastProgress >= 1000) {
-          lastProgress = now;
-          setRefreshSeq((n) => n + 1);
-        }
       }
     });
   }, []);
@@ -309,6 +298,78 @@ const SessionsPage = ({
     );
   };
 
+  // E.4: global loading state while the DB connection opens.
+  if (!dbReady) {
+    return (
+      <div>
+        <PageHeader
+          title="Sessions"
+          isDark={isDark}
+          action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
+        />
+        <main className="content-area page-content px-4">
+          <div className="max-w-md mx-auto text-center py-10">
+            <span
+              aria-hidden="true"
+              className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${
+                isDark
+                  ? "border-white/30 border-t-white"
+                  : "border-purple-200 border-t-purple-600"
+              }`}
+            />
+            <p className={`text-sm mt-3 ${subClass}`}>Loading…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // CASE B/D: without synced data there is nothing to filter.
+  if (showSyncCTA || !hasData) {
+    return (
+      <div>
+        <PageHeader
+          title="Sessions"
+          isDark={isDark}
+          action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
+        />
+        <main className="content-area page-content px-4">
+          <div className="max-w-md mx-auto space-y-4">
+            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
+                  isDark ? "bg-indigo-600" : "bg-indigo-500"
+                }`}
+              >
+                <FiWifiOff size={22} className="text-white" />
+              </div>
+              <h2 className={`font-semibold text-lg ${textClass}`}>
+                {online
+                  ? "Database is empty."
+                  : "No data available. Connect to the internet and sync to use the app offline."}
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                {online
+                  ? "Sync the database to browse sessions offline."
+                  : "Your sessions will appear here after a sync."}
+              </p>
+              <button
+                type="button"
+                onClick={onGoSync}
+                aria-label="Sync database"
+                className={`mt-4 min-h-[48px] px-6 rounded-xl font-semibold text-white active:scale-[0.97] transition-transform ${
+                  isDark ? "bg-indigo-600" : "bg-indigo-500"
+                }`}
+              >
+                Sync database
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -416,23 +477,6 @@ const SessionsPage = ({
                 );
               })}
             </div>
-          ) : syncActive && !subject && sessionType === "All" ? (
-            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
-              <span
-                aria-hidden="true"
-                className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${
-                  isDark
-                    ? "border-white/30 border-t-white"
-                    : "border-purple-200 border-t-purple-600"
-                }`}
-              />
-              <h2 className={`font-semibold text-lg mt-3 ${textClass}`}>
-                Syncing… (first-time setup)
-              </h2>
-              <p className={`text-sm mt-1 ${subClass}`}>
-                Your sessions are downloading. Results appear automatically.
-              </p>
-            </div>
           ) : (
             <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
               <div
@@ -446,21 +490,8 @@ const SessionsPage = ({
                 No sessions found
               </h2>
               <p className={`text-sm mt-1 ${subClass}`}>
-                {subject || sessionType !== "All"
-                  ? "Try widening the filters."
-                  : "Connect to the internet and sync to load sessions."}
+                Try widening the filters.
               </p>
-              {!subject && sessionType === "All" && (
-                <button
-                  type="button"
-                  onClick={onGoSync}
-                  className={`mt-4 min-h-[48px] px-6 rounded-xl font-semibold text-white active:scale-[0.97] transition-transform ${
-                    isDark ? "bg-indigo-600" : "bg-indigo-500"
-                  }`}
-                >
-                  Sync now
-                </button>
-              )}
             </div>
           )}
         </div>

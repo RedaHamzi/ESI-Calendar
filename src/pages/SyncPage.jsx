@@ -12,6 +12,7 @@ import {
 } from "../services/db";
 import { useAppStore } from "../store/appStore";
 import { useLocation } from "wouter";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
   syncAll,
   getCalendarUrls,
@@ -96,6 +97,7 @@ const SyncPage = ({ isDark, onBack }) => {
   }, []);
 
   const dbReady = useAppStore((s) => s.dbReady);
+  const online = useOnlineStatus();
 
   const labelFor = (url) => titleByUrl.get(url) || url;
 
@@ -129,6 +131,10 @@ const SyncPage = ({ isDark, onBack }) => {
 
   const runSync = async (nextRange) => {
     if (syncing) return;
+    if (!online) {
+      setError("You are offline. Connect to sync.");
+      return;
+    }
     const chosen = nextRange || range;
     setRange(chosen);
     try {
@@ -152,7 +158,8 @@ const SyncPage = ({ isDark, onBack }) => {
       setSummary(result);
       await loadStats();
     } catch (e) {
-      setError(e.message || String(e));
+      console.error(`SyncPage/runSync: ${e && e.message ? e.message : e}`);
+      setError((e && e.message) || String(e));
     } finally {
       setSyncing(false);
       setProgress(null);
@@ -174,6 +181,18 @@ const SyncPage = ({ isDark, onBack }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
+          {/* CASE D: the Sync page itself shows a "No internet" state. */}
+          {!online && (
+            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+              <h2 className={`font-semibold text-lg ${textClass}`}>
+                You are offline. Connect to sync.
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                Sync needs an internet connection. Your saved schedules stay
+                available in the meantime.
+              </p>
+            </div>
+          )}
           <div className={`rounded-2xl p-4 border ${cardClass}`}>
             <p className={`text-sm font-semibold ${textClass}`}>
               How much to keep offline
@@ -186,7 +205,7 @@ const SyncPage = ({ isDark, onBack }) => {
                   <button
                     key={id}
                     type="button"
-                    disabled={syncing}
+                    disabled={syncing || !online}
                     onClick={() => runSync(id)}
                     aria-label={label}
                     aria-pressed={selected}
@@ -226,8 +245,9 @@ const SyncPage = ({ isDark, onBack }) => {
 
             <button
               type="button"
-              disabled={syncing}
+              disabled={syncing || !online}
               onClick={() => runSync()}
+              aria-label="Sync now"
               className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${
                 isDark
                   ? "bg-indigo-600 text-white"
