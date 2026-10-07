@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import SearchBar from "./components/SearchBar";
 import MiniNavigator from "./components/MiniNavigator";
 import ThemeToggle from "./components/ThemeToggle";
-import { classes } from "./data/data";
+import { classes, groups } from "./data/data";
 import { isRunningInCapacitor, applyStatusBarTheme } from "./utils/capacitor";
+import { loadLastSelection } from "./utils/history";
 
 function App() {
   const [list, setList] = useState(classes[0]);
@@ -26,6 +27,17 @@ function App() {
       setIsDark(savedTheme === "dark");
     } else {
       setIsDark(true);
+    }
+
+    // Restore the last selected class/group across restarts
+    const last = loadLastSelection();
+    if (last) {
+      const catalog = last.type === "class" ? classes : groups;
+      const found = catalog.find((entry) => entry.title === last.title);
+      if (found) {
+        setType(last.type);
+        setList(found);
+      }
     }
 
     // Add mobile-specific classes

@@ -1,5 +1,6 @@
 import { classes, groups } from "../data/data";
 import { FiBookOpen, FiUsers } from "react-icons/fi";
+import { saveLastSelection } from "../utils/history";
 
 const MiniNavigator = ({ type, setType, setList, isDark }) => {
   const containerBg = isDark ? "bg-white/10 backdrop-blur-lg" : "bg-white/80 backdrop-blur-lg";
@@ -15,7 +16,7 @@ const MiniNavigator = ({ type, setType, setList, isDark }) => {
               ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
           }`}
-          onClick={() => { setType("class"); setList(classes[0]); }}
+          onClick={() => { setType("class"); setList(classes[0]); saveLastSelection("class", classes[0].title); }}
         >
           <span className="inline-flex items-center justify-center gap-2">
             <FiBookOpen size={16} /> Classes
@@ -27,7 +28,7 @@ const MiniNavigator = ({ type, setType, setList, isDark }) => {
               ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
           }`}
-          onClick={() => { setType("group"); setList(groups[0]); }}
+          onClick={() => { setType("group"); setList(groups[0]); saveLastSelection("group", groups[0].title); }}
         >
           <span className="inline-flex items-center justify-center gap-2">
             <FiUsers size={16} /> Groups

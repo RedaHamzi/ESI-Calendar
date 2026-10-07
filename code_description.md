@@ -49,7 +49,7 @@ Exact versions from `package.json:21-46` (all caret ranges):
 | CSS | `tailwindcss` | `^3.4.19` (v3 pinned — v4 breaks `postcss.config.js`; see §10) | `tailwind.config.js`, `postcss.config.js`, `src/index.css:1-3` |
 | CSS | `daisyui` | `^3.9.4` (v3 line to match Tailwind v3) | Tailwind plugin, `themes: ["light"]` only |
 | CSS | `autoprefixer` | `^10.4.14` | PostCSS |
-| Font | Inter (self-hosted woff2, weights 400/500/600/700) | `public/fonts/` pending — see `public/fonts/README.md` | no CDN import; `font-display: swap` once files land |
+| Font | `@fontsource/cairo` | `^5.3.0` (npm; weights 400/500/600/700) | bundled by Vite into `dist/assets/*.woff2`, no CDN import, no `public/fonts/` |
 | Build | `vite` | `^7.1.12` | `vite.config.js`, outDir `dist` |
 | Build | `@vitejs/plugin-react` | `^4.0.0` | |
 | Assets | `@capacitor/assets` | `^3.0.5` | devDependency; `assets:generate` script (needs `resources/splash.png` + `icon.png`) |
@@ -82,19 +82,18 @@ code/                            # repo root (= npm project root)
 ├── .gitignore / README.md       # README: 8 lines, classroom-schedule blurb + disclaimer
 ├── public/                      # copied verbatim to dist/
 │   ├── manifest.json            # PWA manifest (standalone, og.png icon)
-│   ├── fonts/                   # self-hosted Inter woff2 slot (400/500/600/700); README only until files land
 │   ├── robots.txt / favicon.ico / vite.svg / og.png
-├── resources/                   # Capacitor asset sources: splash.png (2732x2732), icon.png (1024x1024); README until files land
+├── resources/                   # Capacitor asset sources: real splash.png (941x1672) + icon.png (256x256); `assets:generate` run 2026-10-07 (87 android assets)
 ├── src/
 │   ├── main.jsx                 # React entry: viewport meta, contextmenu guard, initializeApp(), render <App/>
 │   ├── App.jsx                  # Sole screen: theme/mobile state, SearchBar+MiniNavigator+iframes+footer
-│   ├── index.css                # Tailwind directives + @font-face (once fonts land) + custom utilities (safe-area incl. .status-bar-padding, scrollbars, touch targets)
+│   ├── index.css                # Tailwind directives + custom utilities (safe-area incl. .status-bar-padding, scrollbars, touch targets)
 │   ├── data/data.js             # Static catalogs: `classes[61]` + `groups[42]` Google calendar IDs
-│   ├── components/SearchBar.jsx # Filterable dropdown search for current type (+ "Recent" history section)
+│   ├── components/SearchBar.jsx # Filterable dropdown search for current type (+ separate history chip-strip below the bar)
 │   ├── components/MiniNavigator.jsx # Classes ↔ Groups segmented toggle, resets selection
 │   ├── components/ThemeToggle.jsx   # Dark/light pill switch, mounted-guard placeholder
 │   ├── utils/capacitor.js       # initializeApp() + isRunningInCapacitor() + applyStatusBarTheme()
-│   └── utils/history.js         # recent-searches store (localStorage, max 5 per type)
+│   └── utils/history.js         # recent-searches store (localStorage, max 5 per type) + last-selection store
 ├── android/                     # Generated Capacitor Android shell (app/, gradle/, *.gradle, gradlew*)
 │   └── app/src/main/AndroidManifest.xml  # INTERNET permission, MainActivity singleTask
 └── dist/                        # build output (gitignored/empty in repo) → Capacitor webDir
@@ -121,18 +120,19 @@ code/                            # repo root (= npm project root)
   - Desktop (`hidden md:block`) iframe uses `mode=WEEK`; mobile (`block md:hidden`) iframe uses `mode=AGENDA&dates=20090401/20501231&showTitle=1&showDate=0&showTabs=1` (`src/App.jsx:145-168`).
   - No API keys, no `fetch`, no caching, no offline bundle — requires live internet + access to those public Google calendars.
   - Static catalogs only: `src/data/data.js` exports `classes` and `groups` (calendar IDs, see §6). No mock server, no SQLite, no local JSON fetch.
-  - Only persistence: `localStorage key "esi-calendar-theme"` → `"dark"|"light"` (`src/App.jsx:24,41`), plus search history keys `esi-calendar-recent-classes` / `esi-calendar-recent-groups` (see "Search history" below).
+  - Only persistence: `localStorage key "esi-calendar-theme"` → `"dark"|"light"` (`src/App.jsx:24,41`), plus search history keys `esi-calendar-recent-classes` / `esi-calendar-recent-groups`, and last-selection key `esi-calendar-last-selection` (see "Search history" below).
 - **State management:**
   - `src/App.jsx:9-13`: `list` (selected classroom/group object), `type` (`"class"|"group"`), `isMobile` (window width `<768`, resize listener), `isDark` (default `true`, hydrated from localStorage), `isNativeApp` (set once from `isRunningInCapacitor()`, never read for branching — dead state). The `isDark` effect also calls `applyStatusBarTheme(isDark)` (`src/utils/capacitor.js`).
   - `SearchBar` local state: `inputValue`, `isOpen`, `dropdownRef` (declared but never used beyond ref attach).
   - Props drilling only: `App` passes `setList/setType/type/isDark` down; no Context/store.
 - **Search history:**
-  - `src/utils/history.js` (plain module, no dependency) owns it: `getRecent(type)`, `pushRecent(type, item)`, `clearRecent(type)`.
+  - `src/utils/history.js` (plain module, no dependency) owns it: `getRecent(type)`, `pushRecent(type, item)`, `clearRecent(type)`, plus `loadLastSelection()` / `saveLastSelection(type, title)`.
   - localStorage keys `esi-calendar-recent-classes` and `esi-calendar-recent-groups`, each a JSON array of `{ title, src }` (or `{ title, src: string[] }`) deep copies, max 5 each, dedupe-by-title, newest first; survives reload. All access wrapped in try/catch; parse errors read as empty history.
-  - `SearchBar.handleSelect` pushes the pick; opening the dropdown with empty input renders the "Recent" section above the full list; the Clear button empties the current type's list.
+  - History renders as its own chip-strip BETWEEN the search bar and the results dropdown — it is not inside the dropdown. It shows the last 5 picks for the current type (newest first); each chip selects that item; a trailing Clear button empties the current type's list. Renders nothing when history is empty. The dropdown itself appears only while the search input is focused (opens on focus/type, closes on blur with a 120 ms delay so item clicks register, or on overlay click) and shows filtered results only.
+  - Last selection: key `esi-calendar-last-selection`, shape `{ type: "class"|"group", title: string }`, written on every selection (dropdown pick, history-chip pick, `MiniNavigator` auto-select, search-clear reset). On app mount `App.jsx` reads it and restores `type` + `list` if the title still exists in `classes`/`groups`; otherwise it silently keeps the default (`"class"` + `classes[0]`).
 - **"By group" vs "by classroom" end-to-end:**
   1. `MiniNavigator` sets `type` + resets `list` to first entry of the other catalog (`src/components/MiniNavigator.jsx:17,27`).
-  2. `SearchBar` switches source array: `const selectedList = (type == "class") ? classes : groups` (`src/components/SearchBar.jsx:10`), filters by case-insensitive substring on `title` (`:17-19`), `handleSelect` calls `setList(item)` (`:21-25`), `handleClear` resets to `classes[0]`/`groups[0]` (`:27-36`).
+  2. `SearchBar` switches source array: `const selectedList = (type == "class") ? classes : groups` (`src/components/SearchBar.jsx:10`), filters by case-insensitive substring on `title` (`:17-19`), `handleSelect` calls `setList(item)` + `pushRecent(type, item)` + `saveLastSelection(type, item.title)` (`src/components/SearchBar.jsx:31-37`), `handleClear` resets to `classes[0]`/`groups[0]` and persists that (`:43-50`). The dropdown opens on focus/type and closes on blur with a 120 ms delay (`:52-62`); history chips call the same `handleSelect`.
   3. `App` displays `Selected {type}` + `list.title` card (`src/App.jsx:108-137`, badge `C`/`G` at `:132-134`).
   4. `App` builds the iframe `src` with the single-string vs array-of-strings branch described above, so the Google embed re-renders.
 
@@ -149,22 +149,22 @@ code/                            # repo root (= npm project root)
 ## 5. Key Components & Screens
 
 - **Screens/routes:** exactly one screen, no router.
-  - `src/App.jsx` (`App`, no props) — owns all page state; composes header (title + `ThemeToggle`), `SearchBar` + `MiniNavigator`, selected-item card, two responsive iframes (desktop WEEK / mobile AGENDA), footer GitHub link (`https://github.com/RedaHamzi/ESI-Calendar`).
+  - `src/App.jsx` (`App`, no props) — owns all page state; composes header (title + `ThemeToggle`), `SearchBar` + `MiniNavigator`, selected-item card, two responsive iframes (desktop WEEK / mobile AGENDA), footer GitHub link (`https://github.com/RedaHamzi/ESI-Calendar`). On mount it restores the last selection from `esi-calendar-last-selection` (`loadLastSelection()`) when the title still exists in `classes`/`groups`.
 - **Reusable components (all in `src/components/`, all default-exported, all `isDark`-aware):**
-  - `SearchBar.jsx` — `SearchBar({ setList, type, isDark })`. Filterable combobox over `classes|groups`; internal `inputValue/isOpen/recent`; clear (FiX) button resets to catalog default; dropdown chevron (FiChevronDown) rotates; search glyph is FiSearch; fixed overlay closes on outside click; empty state `No {type} found`. With empty input and non-empty history, a "Recent" header row (label + Clear button) renders above the filtered list, separated by a thin divider; the header is hidden when history is empty.
-  - `MiniNavigator.jsx` — `MiniNavigator({ type, setType, setList, isDark })`. Segmented `Classes` (FiBookOpen) / `Groups` (FiUsers) control; active tab gets a solid accent (`bg-indigo-600` dark / `bg-indigo-500` light); switching resets `list`.
+  - `SearchBar.jsx` — `SearchBar({ setList, type, isDark })`. Layout is three stacked parts: search input (always visible), then a separate history chip-strip (last 5 picks for the current type + Clear button; renders nothing when empty), then the results dropdown, which appears only while the input is focused (opens on focus/type, closes on blur with a 120 ms delay or overlay click) and shows filtered results only — no history inside. Filterable combobox over `classes|groups`; clear (FiX) button resets to catalog default and persists it; dropdown chevron (FiChevronDown) rotates; search glyph is FiSearch; empty state `No {type} found`.
+  - `MiniNavigator.jsx` — `MiniNavigator({ type, setType, setList, isDark })`. Segmented `Classes` (FiBookOpen) / `Groups` (FiUsers) control; active tab gets a solid accent (`bg-indigo-600` dark / `bg-indigo-500` light); switching resets `list` and persists the auto-selection via `saveLastSelection`.
   - `ThemeToggle.jsx` — `ThemeToggle({ isDark, setIsDark })`. Pill toggle with outlined sun/moon icons (FiSun / FiMoon); `mounted` guard returns static placeholder pre-mount to avoid layout shift.
 - **Schedule rendering logic lives in:** `src/App.jsx:139-169` (the two `<iframe>` elements + URL template). No date/slot computation in JS — Google Calendar embed does all rendering. `src/data/data.js` only supplies calendar IDs.
 - **Utilities:**
   - `src/utils/capacitor.js` — `initializeApp()` (status bar themed from the persisted `esi-calendar-theme` value + App listeners), `isRunningInCapacitor()` (`window.Capacitor || window.androidBridge || /Capacitor/ UA`), `applyStatusBarTheme(isDark)` (native style + background sync, web no-op).
 
 ```jsx
-// src/components/SearchBar.jsx:10-25 — filtering + selection (the "by group/classroom" query)
+// src/components/SearchBar.jsx:13-37 — filtering + selection (the "by group/classroom" query)
 const selectedList = (type == "class") ? classes : groups;
 const filteredItems = selectedList.filter(item =>
   item.title.toLowerCase().includes(inputValue.toLowerCase())
 );
-const handleSelect = (item) => { setInputValue(item.title); setIsOpen(false); setList(item); };
+const handleSelect = (item) => { setInputValue(item.title); setIsOpen(false); setList(item); setRecent(pushRecent(type, item)); saveLastSelection(type, item.title); };
 ```
 
 ## 6. Data Models
@@ -218,7 +218,7 @@ export const groups = [
 - **Platform-specific configs:** `android/` (gradle shell) present; `ios/` absent. No `network_security_config.xml` found.
 - **Build & run scripts (`package.json:6-20`):**
   - `dev`: `vite` · `build`: `vite build` · `preview`: `vite preview` · `lint`: `eslint src --ext js,jsx …`
-  - `assets:generate`: `npx @capacitor/assets generate --android` (requires `resources/splash.png` + `icon.png`)
+  - `assets:generate`: `npx @capacitor/assets generate --android` (run 2026-10-07 against real `resources/splash.png` + `icon.png`: 87 android assets generated, then `npx cap sync android`)
   - `cap:init`: `npx cap init ESICalendar com.esi.calendar --web-dir=dist`
   - `cap:add:android/ios`: `npm run build && npx cap add android|ios`
   - `cap:sync`: `npm run build && npx cap sync` · `cap:open/run/*`, `cap:build:android`.
@@ -231,7 +231,7 @@ export const groups = [
 - **Accent color:** single solid accent, no gradients anywhere in `src/` — active tabs, badges and avatars use `bg-indigo-600` (dark) / `bg-indigo-500` (light); page backgrounds are flat `bg-slate-900` (dark) / `bg-blue-50` (light); the light theme-toggle pill is flat `bg-orange-400`. Do not reintroduce gradients, glows, or heavy shadows.
 - **Layout:** mobile-first single column `max-w-md mx-auto`; `md:` breakpoint swaps WEEK (desktop, `h-[60vh]`) vs AGENDA (mobile, `h-[65vh]`) iframe; `isMobile` (`<768px`) only shrinks header text.
 - **Custom CSS (`src/index.css`):** fixed-px safe-area helpers (`.safe-area-top/bottom` now `max(24px+, env(safe-area-inset-top, 0px))`, plus `.status-bar-padding` applied to the app root container so the header clears the native status bar; 24 px web default keeps web builds slim), `.content-area/.header-spacing/.footer-spacing`, `.custom-scrollbar`, `.no-select` (applied to body), `.touch-target` (44 px min), `.scroll-smooth`, `.hide-scrollbar`, `.min-h-screen-mobile` (`100vh`, no `dvh` fallback), global `*` color/background transition.
-- **Fonts:** family is Inter, self-hosted from `public/fonts/` — no CDN import is used anywhere (no `@import url(...googleapis...)`), and reintroducing one is a regression. The planned wiring (once files land): `inter-regular/medium/semibold/bold.woff2` (weights 400/500/600/700) under `public/fonts/`, `@font-face` declarations (`font-display: swap`) at the top of `src/index.css`, and `theme.fontFamily.sans = ["Inter", "ui-sans-serif", "system-ui", "sans-serif"]` in `tailwind.config.js`. Font binaries are still pending (see `public/fonts/README.md`); until they land the app uses the system sans stack, and no `<link rel="preload">` may be added to `index.html`.
+- **Fonts:** family is Cairo, provided by the `@fontsource/cairo` npm package (weights 400/500/600/700 imported in `src/main.jsx` before `./index.css`, bundled by Vite into `dist/assets/*.woff2`) — NOT self-hosted woff2 files and NOT a CDN import. No `@import url(...googleapis...)` is used anywhere, and reintroducing one is a regression. `theme.fontFamily.sans = ["Cairo", "ui-sans-serif", "system-ui", "sans-serif"]` in `tailwind.config.js`. No `<link rel="preload">` font tags in `index.html`.
 - **RTL:** `android:supportsRtl="true"` in manifest, but no RTL testing, no `dir` attributes, no Arabic strings in UI — English only. No i18n framework.
 
 ## 10. Known Constraints / Notes
@@ -248,6 +248,8 @@ export const groups = [
 - **Android launcher icon (2026-10-06 fix):** `npx cap run android` failed at `:app:processDebugResources` with `AAPT: error: resource mipmap/ic_launcher_round not found` because `android/app/src/main/AndroidManifest.xml` referenced `@mipmap/ic_launcher_round` but only `ic_launcher.png` exists in `android/app/src/main/res/mipmap-{hdpi,mdpi,xhdpi,xxhdpi,xxxhdpi}/` (no `ic_launcher_round.png`, no `mipmap-anydpi-v26/` adaptive-icon XML). Fixed by deleting the `android:roundIcon` attribute; launcher falls back to `@mipmap/ic_launcher` on all API levels. Verified with `:app:assembleDebug` → `BUILD SUCCESSFUL`. If round icons are wanted later, either re-add per-density `ic_launcher_round.png` assets or add adaptive-icon XML instead of re-adding the bare attribute.
 - **TODOs:** none found via code search — Unclear / not found whether calendar-ID rotation or multi-select is planned; no `TODO/FIXME` markers observed in `src/`.
 - **Status bar / theme coupling:** the native status bar style must be kept in sync with the `isDark` state — see `applyStatusBarTheme()` in `src/utils/capacitor.js`. Any new theme must add its status bar colors there, not hardcode them in `initializeApp()`.
-- **Fonts stay self-hosted:** do not add `@import url(...googleapis...)` anywhere; fonts are self-hosted. Reintroducing a CDN import is a regression.
-- **Search history cap:** history is capped at 5 per type; increasing the cap requires updating both `data.js`-adjacent logic and the copy in the 'Recent' header UI if any.
-- **Last updated:** 2026-10-07. Refreshed after the theme / icon / font / search-history change.
+- **Fonts come from npm:** do not add `@import url(...googleapis...)` anywhere; fonts are provided by `@fontsource/cairo`, not self-hosted woff2, not a CDN import. Reintroducing a CDN import is a regression.
+- **Search history cap:** history is capped at 5 per type; increasing the cap requires updating both `history.js` (`MAX_ITEMS`) and the history chip-strip UI.
+- **Search history and last selection are persisted in localStorage (`esi-calendar-recent-classes`, `esi-calendar-recent-groups`, `esi-calendar-last-selection`). Clear them via the history strip's Clear button or by wiping localStorage.**
+- **2CP C G09 and 2CP C G10 share the same underlying calendar ID — do not 'fix' this; it is intentional.**
+- **Last updated:** 2026-10-07. Refreshed after the Cairo font / persistent-selection / search-history / splash-asset / group-ID refresh change.

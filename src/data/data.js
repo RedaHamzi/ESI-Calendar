@@ -337,53 +337,53 @@ export const groups = [
   {
     title: "2CP A G01",
     src: [
-      "ZXNpLmR6X3ZobzMxNHEwNHVtaHBnazBhMW1sbWQ0bHE4QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_vho314q04umhpgk0a1mlmd4lq8%40group.calendar.google.com",
       "ZXNpLmR6XzFhazdmMWk1Y2s1c3RwOWZmcnFoYWNrc2k0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2CP A G02",
     src: [
-      "ZXNpLmR6X2ZtZGticmZpMGswdGE4dnZidjNtMWdnZDA0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_fmdkbrfi0k0ta8vvbv3m1ggd04%40group.calendar.google.com",
       "ZXNpLmR6XzFhazdmMWk1Y2s1c3RwOWZmcnFoYWNrc2k0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2CP A G03",
     src: [
-      "ZXNpLmR6Xzdua2RraTZocHF2MWw3ODgwY21wZTNxajE0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_7nkdki6hpqv1l7880cmpe3qj14%40group.calendar.google.com",
       "ZXNpLmR6XzFhazdmMWk1Y2s1c3RwOWZmcnFoYWNrc2k0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2CP A G04",
     src: [
-      "c_c31d0734f16396aadb96b02d4af1e3a722d3c82fc425bff56ab19ed019815e2f%40group.calendar.google.com",
+      "esi.dz_ca9mpv1ke2295rlt7divndp7r0%40group.calendar.google.com",
     ],
   },
   {
     title: "2CP B G05",
     src: [
-      "ZXNpLmR6XzFwcG52MDB1YW1nYmhyMzNmMDRxMmE3dHYwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_43c7trbcvbjc0ln2m25qnmqr3g%40group.calendar.google.com",
       "ZXNpLmR6X2FtaHRzZDYxcTc2djA1czk4YjYxY29vbzRnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2CP B G06",
     src: [
-      "esi.dz_43c7trbcvbjc0ln2m25qnmqr3g%40group.calendar.google.com",
+      "esi.dz_1ppnv00uamgbhr33f04q2a7tv0%40group.calendar.google.com",
     ],
   },
   {
     title: "2CP B G07",
     src: [
-      "esi.dz_ca9mpv1ke2295rlt7divndp7r0%40group.calendar.google.com",
+      "esi.dz_t8g69kjdvb7rpggk1oaf8a2vd8%40group.calendar.google.com",
     ],
   },
   {
     title: "2CP B G08",
     src: [
-      "ZXNpLmR6XzU0cHRocDc5OWtwcW5xZ3FtdTA5ZGZvcWRzQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_54pthp799kpqnqgqmu09dfoqds%40group.calendar.google.com",
       "ZXNpLmR6X2hpNHQ5MzNkb2cwM2dmOGdnazB0YzI5dTVjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
@@ -404,63 +404,63 @@ export const groups = [
   {
     title: "1CS A G01",
     src: [
-      "ZXNpLmR6X20xb3E3dHVpbzh1OTQxOWU2dTRqZXB2bWg4QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_m1oq7tuio8u9419e6u4jepvmh8%40group.calendar.google.com",
       "ZXNpLmR6XzdmNHRibWs5NHJmdjVsYmhiZGcxanJwb2cwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS A G02",
     src: [
-      "ZXNpLmR6X3IzZ3RzNjQ0NW83ZjFhbzc5MnNmNjdnZWxzQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_r3gts6445o7f1ao792sf67gels%40group.calendar.google.com",
       "ZXNpLmR6XzdmNHRibWs5NHJmdjVsYmhiZGcxanJwb2cwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS A G03",
     src: [
-      "ZXNpLmR6XzkzcmExc25jOWJkaGJubTI4amRzcnBvNGJnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_93ra1snc9bdhbnm28jdsrpo4bg%40group.calendar.google.com",
       "ZXNpLmR6XzdmNHRibWs5NHJmdjVsYmhiZGcxanJwb2cwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS A G04",
     src: [
-      "ZXNpLmR6X250NnBvc3QybGg0NmVnaWJ1cmQyOWR0cjljQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_nt6post2lh46egiburd29dtr9c%40group.calendar.google.com",
       "ZXNpLmR6X2U4czR2cmlyajBrNzlrZTFuNDhrZ3AyYzBjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS B G05",
     src: [
-      "ZXNpLmR6X3E1c3FidTRkMTdsNXBmcWJuZ25tNG4ybTdvQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_q5sqbu4d17l5pfqbngnm4n2m7o%40group.calendar.google.com",
       "ZXNpLmR6X2U4czR2cmlyajBrNzlrZTFuNDhrZ3AyYzBjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS B G06",
     src: [
-      "ZXNpLmR6X3Z2b2IwMzhkbW4yM28waDg4YWRmYml2bzhjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_vvob038dmn23o0h88adfbivo8c%40group.calendar.google.com",
       "ZXNpLmR6X2U4czR2cmlyajBrNzlrZTFuNDhrZ3AyYzBjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "1CS B G07",
     src: [
-      "ZXNpLmR6Xzloa21ucTFkYjIyNHZuMGpkdXFrdjA4MWdnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_9hkmnq1db224vn0jduqkv081gg%40group.calendar.google.com",
       "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
     ],
   },
   {
     title: "1CS B G08",
     src: [
-      "ZXNpLmR6XzUxNWE3N2o0M21rcGNlaWVoYWpkZjViYXRjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_515a77j43mkpceiehajdf5batc%40group.calendar.google.com",
       "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
     ],
   },
   {
     title: "1CS C G09",
     src: [
-      "ZXNpLmR6X3Rlc2xubW9raDF0Y3YwZmFkY3M1N211bDIwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_teslnmokh1tcv0fadcs57mul20%40group.calendar.google.com",
       "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
     ],
   },
@@ -471,51 +471,72 @@ export const groups = [
     ],
   },
   {
+    title: "1CS C G011",
+    src: [
+      "c_4e991992cf97f5290a76cdcaee51d5cf93d82ad0b7883f9d60dab1c645f75128%40group.calendar.google.com",
+      "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
+    ],
+  },
+  {
+    title: "1CS C G012",
+    src: [
+      "c_500c9889639cddd70846891c8e31ef15c01d91eadf6ac6dfe7ca9cab1c15a3b4%40group.calendar.google.com",
+      "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
+    ],
+  },
+  {
     title: "2SL A G01",
     src: [
-      "ZXNpLmR6XzUxam1xZ21uYzdmMm51b2J0M24yam5hNWhjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_51jmqgmnc7f2nuobt3n2jna5hc%40group.calendar.google.com",
       "ZXNpLmR6X2U1cW11cGJycG4zZjgzbmgwYmUwbnRoMHM0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2SL A G02",
     src: [
-      "ZXNpLmR6X2draTRwcjU3ZGhnNXVsbm5tdGtyMzc0MzJvQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_gki4pr57dhg5ulnnmtkr37432o%40group.calendar.google.com",
       "ZXNpLmR6X2U1cW11cGJycG4zZjgzbmgwYmUwbnRoMHM0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2SQ A G01",
     src: [
-      "ZXNpLmR6XzZpbjBqaWZocWgxbjlsMXZqcDEyMWxtczQ4QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_6in0jifhqh1n9l1vjp121lms48%40group.calendar.google.com",
       "ZXNpLmR6X3NwOG4xcmUzcTE5bmZsNm04aDZmbGRiYW1rQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2SQ A G02",
     src: [
-      "ZXNpLmR6X3R1aDhocTd2bW81Nmo5OGVuNWJxNWQxM2c4QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_tuh8hq7vmo56j98en5bq5d13g8%40group.calendar.google.com",
       "ZXNpLmR6X3NwOG4xcmUzcTE5bmZsNm04aDZmbGRiYW1rQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2ST A G01",
     src: [
-      "ZXNpLmR6X284aGUzdmI4djExdnRxbWQ4OG9hNms5azhrQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_o8he3vb8v11vtqmd88oa6k9k8k%40group.calendar.google.com",
       "ZXNpLmR6X2loM3Fuc3FhN2oycWI4MW5kajVsdGsyajBnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2ST A G02",
     src: [
-      "ZXNpLmR6Xzg0MGpra21lcmlxdWo2MXQ1NGdkcXVnZW80QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+      "esi.dz_840jkkmeriquj61t54gdqugeo4%40group.calendar.google.com",
+      "ZXNpLmR6X2loM3Fuc3FhN2oycWI4MW5kajVsdGsyajBnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+    ],
+  },
+  {
+    title: "2ST A G03",
+    src: [
+      "esi.dz_0suv62qkqlh3sk5ds89s2jrjtg%40group.calendar.google.com",
       "ZXNpLmR6X2loM3Fuc3FhN2oycWI4MW5kajVsdGsyajBnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
     ],
   },
   {
     title: "2SD A G01",
     src: [
-      "Y19mb2wxNjN1dnBrcnBpM2w1ZXRqa3BucGZoZ0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
+      "c_fol163uvpkrpi3l5etjkpnpfhg%40group.calendar.google.com",
       "Y19oOW91dmEzaGUxcm4yOGE3YTk4cTU4b2E4c0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
     ],
   },

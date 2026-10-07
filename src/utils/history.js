@@ -3,6 +3,8 @@ const KEYS = {
   group: 'esi-calendar-recent-groups',
 };
 
+const LAST_SELECTION_KEY = 'esi-calendar-last-selection';
+
 const MAX_ITEMS = 5;
 
 const isValidEntry = (entry) =>
@@ -46,4 +48,31 @@ export const clearRecent = (type) => {
     // ignore — history stays empty for this session
   }
   return [];
+};
+
+export const loadLastSelection = () => {
+  try {
+    const raw = localStorage.getItem(LAST_SELECTION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed === null ||
+      typeof parsed !== 'object' ||
+      (parsed.type !== 'class' && parsed.type !== 'group') ||
+      typeof parsed.title !== 'string'
+    ) {
+      return null;
+    }
+    return { type: parsed.type, title: parsed.title };
+  } catch (e) {
+    return null;
+  }
+};
+
+export const saveLastSelection = (type, title) => {
+  try {
+    localStorage.setItem(LAST_SELECTION_KEY, JSON.stringify({ type, title }));
+  } catch (e) {
+    // storage unavailable — selection just won't survive a restart
+  }
 };

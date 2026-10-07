@@ -129,3 +129,24 @@ from `data.js` (no placeholder invented).
   and a personal `@esi.dz` calendar on the 1CP A G02 embed — both excluded.
 - Scraper 1 did not check robots.txt and could not run a headless browser;
   JavaScript-injected calendars would have been missed.
+
+## Round 2: groups refreshed from user-provided ICS list
+
+- Updated 24 entries with new IDs
+- Added: 1CS C G011, 1CS C G012, 2ST A G03
+- Skipped per user: 2CP C G09, 2CP C G10
+- 1CP untouched (not in the new list)
+
+Details: each mapped group's group-specific first `src` was replaced with the
+bare calendar ID extracted from its ICS URL (`/ical/`…`/public/basic.ics`,
+`%40` kept as-is). The existing section-overlay second `src` was kept;
+single-`src` entries (2CP A G04, 2CP B G06, 2CP B G07) stayed single.
+`1CS C G10` and `2SD A G02` already matched the new list byte-for-byte, so
+they were left untouched. The 3 added entries use a two-element `src`
+(new group ID first, sibling section overlay second). Section IDs from the
+ICS list (`2CPA`, `2CPB`, `2CP.C`, `1CSA`, `1CSB`, `1CSC`, `2SL`, `2SQ`,
+`2ST`, `2SD`) have no standalone entries in `groups` — sections exist only as
+overlays — so there was nothing to replace and no section entries were added.
+`classes` (rooms) untouched. Note: the new list rotates two 2CP IDs relative
+to the old file (`esi.dz_43c7…` G06→G05, `esi.dz_ca9m…` B G07→A G04); applied
+literally as provided.

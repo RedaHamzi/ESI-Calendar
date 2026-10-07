@@ -1,13 +1,14 @@
 import { classes, groups } from "../data/data";
 import { useEffect, useRef, useState } from "react";
 import { FiSearch, FiChevronDown, FiX } from "react-icons/fi";
-import { getRecent, pushRecent, clearRecent } from "../utils/history";
+import { getRecent, pushRecent, clearRecent, saveLastSelection } from "../utils/history";
 
 const SearchBar = ({ setList, type, isDark }) => {
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [recent, setRecent] = useState([]);
   const dropdownRef = useRef();
+  const blurTimer = useRef(null);
 
   const selectedList = (type == "class") ? classes : groups;
 
@@ -16,6 +17,12 @@ const SearchBar = ({ setList, type, isDark }) => {
     setIsOpen(false);
     setRecent(getRecent(type));
   }, [type]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimer.current) clearTimeout(blurTimer.current);
+    };
+  }, []);
 
   const filteredItems = selectedList.filter(item =>
     item.title.toLowerCase().includes(inputValue.toLowerCase())
@@ -26,6 +33,7 @@ const SearchBar = ({ setList, type, isDark }) => {
     setIsOpen(false);
     setList(item);
     setRecent(pushRecent(type, item));
+    saveLastSelection(type, item.title);
   };
 
   const handleClearRecent = () => {
@@ -36,11 +44,21 @@ const SearchBar = ({ setList, type, isDark }) => {
     setInputValue("");
     setIsOpen(false);
     // Optionally reset to default list when cleared
-    if (type === "class") {
-      setList(classes[0]);
-    } else {
-      setList(groups[0]);
-    }
+    const fallback = type === "class" ? classes[0] : groups[0];
+    setList(fallback);
+    saveLastSelection(type, fallback.title);
+  };
+
+  const handleFocus = () => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    setRecent(getRecent(type));
+    setIsOpen(true);
+  };
+
+  const handleBlur = () => {
+    // Short delay so clicks on dropdown items register before hiding
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    blurTimer.current = setTimeout(() => setIsOpen(false), 120);
   };
 
   // Theme-based styles
@@ -52,8 +70,9 @@ const SearchBar = ({ setList, type, isDark }) => {
   const dropdownBorder = isDark ? "border-white/20" : "border-purple-200";
   const iconColor = isDark ? "text-purple-400" : "text-purple-500";
   const clearButtonColor = isDark ? "text-purple-300 hover:text-white" : "text-purple-500 hover:text-purple-700";
-  const recentHeaderColor = isDark ? "text-gray-400" : "text-gray-500";
-  const dividerColor = isDark ? "border-gray-700" : "border-gray-200";
+  const chipStyles = isDark
+    ? "bg-white/10 border-white/20 text-purple-100 hover:bg-white/20"
+    : "bg-white/80 border-purple-200 text-purple-700 hover:bg-purple-50";
 
   const renderRow = (item, key) => (
     <button
@@ -96,7 +115,8 @@ const SearchBar = ({ setList, type, isDark }) => {
             setInputValue(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => { setRecent(getRecent(type)); setIsOpen(true); }}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
         />
         
         {/* Clear Button - Shows only when there's text */}
@@ -116,9 +136,30 @@ const SearchBar = ({ setList, type, isDark }) => {
         </div>
       </div>
 
-      {/* Dropdown */}
+      {/* Recent history strip — separate from the dropdown */}
+      {recent.length > 0 && (
+        <div className="flex items-center gap-2 mt-2 overflow-x-auto hide-scrollbar">
+          {recent.map((item) => (
+            <button
+              key={`recent-${item.title}`}
+              onClick={() => handleSelect(item)}
+              className={`shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors duration-150 ${chipStyles}`}
+            >
+              {item.title}
+            </button>
+          ))}
+          <button
+            onClick={handleClearRecent}
+            className={`shrink-0 px-2 py-1.5 text-xs transition-colors duration-150 ${clearButtonColor}`}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Dropdown — only while the search input is focused */}
       {isOpen && (
-        <div className={`absolute top-full left-0 right-0 mt-2 rounded-2xl shadow-2xl border z-50 max-h-80 overflow-hidden ${dropdownBg} ${dropdownBorder}`}>
+        <div ref={dropdownRef} className={`absolute top-full left-0 right-0 mt-2 rounded-2xl shadow-2xl border z-50 max-h-80 overflow-hidden ${dropdownBg} ${dropdownBorder}`}>
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
             {filteredItems.length === 0 ? (
               <div className={`p-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -126,23 +167,6 @@ const SearchBar = ({ setList, type, isDark }) => {
               </div>
             ) : (
               <div className="py-2">
-                {inputValue === "" && recent.length > 0 && (
-                  <>
-                    <div className="flex items-center justify-between px-4 pt-1 pb-2">
-                      <span className={`text-xs uppercase tracking-wider ${recentHeaderColor}`}>
-                        Recent
-                      </span>
-                      <button
-                        onClick={handleClearRecent}
-                        className={`text-xs transition-colors duration-150 ${clearButtonColor}`}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                    {recent.map((item) => renderRow(item, `recent-${item.title}`))}
-                    <div className={`mx-4 my-2 border-t ${dividerColor}`} />
-                  </>
-                )}
                 {filteredItems.map((item) => renderRow(item, item.title))}
               </div>
             )}
