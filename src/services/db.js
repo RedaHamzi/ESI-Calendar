@@ -73,11 +73,16 @@ export async function openDb() {
   }
   await dbInstance.open();
   await ensureSchema(dbInstance);
-  try {
-    await dbInstance.execute('ALTER TABLE sessions ADD COLUMN raw_location TEXT');
-  } catch (e) {
-    const msg = String(e?.message ?? e);
-    if (!/duplicate column name/i.test(msg)) throw e;
+  for (const ddl of [
+    'ALTER TABLE sessions ADD COLUMN raw_location TEXT',
+    'ALTER TABLE calendars ADD COLUMN sync_range TEXT',
+  ]) {
+    try {
+      await dbInstance.execute(ddl);
+    } catch (e) {
+      const msg = String(e?.message ?? e);
+      if (!/duplicate column name/i.test(msg)) throw e;
+    }
   }
   return dbInstance;
 }
@@ -95,24 +100,55 @@ function rowsOf(result) {
   return [];
 }
 
+export const SYNC_RANGES = ['year', 'month', 'week'];
+
+export const ACADEMIC_YEAR_BOUNDS = {
+  minStartsAt: Math.floor(Date.UTC(2025, 8, 1) / 1000),
+  maxStartsAt: Math.floor(Date.UTC(2026, 7, 31, 23, 59, 59) / 1000),
+};
+
+// Range filtering happens at INSERT time (parse stays pure): callers pass
+// these bounds as opts to replaceSessionsForCalendar. Seconds, inclusive.
+export function getSyncRangeBounds(range, nowMs) {
+  const now = new Date(nowMs == null ? Date.now() : nowMs);
+  if (range === 'month') {
+    const min = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const max = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return {
+      minStartsAt: Math.floor(min.getTime() / 1000),
+      maxStartsAt: Math.floor(max.getTime() / 1000),
+    };
+  }
+  if (range === 'week') {
+    const mondayOffset = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset, 0, 0, 0);
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23, 59, 59);
+    return {
+      minStartsAt: Math.floor(monday.getTime() / 1000),
+      maxStartsAt: Math.floor(sunday.getTime() / 1000),
+    };
+  }
+  return { ...ACADEMIC_YEAR_BOUNDS };
+}
+
 export async function getCalendarMeta(db, url) {
-  const result = await db.query('SELECT url, calname, etag, last_synced, event_count FROM calendars WHERE url = ?', [url]);
+  const result = await db.query('SELECT url, calname, etag, last_synced, event_count, sync_range FROM calendars WHERE url = ?', [url]);
   const rows = rowsOf(result);
   return rows.length > 0 ? rows[0] : null;
 }
 
 export async function upsertCalendarMeta(db, meta) {
   const updated = await db.run(
-    'UPDATE calendars SET calname = ?, etag = ?, last_synced = ?, event_count = ? WHERE url = ?',
-    [meta.calname || null, meta.etag || null, meta.last_synced || null, meta.event_count || null, meta.url],
+    'UPDATE calendars SET calname = ?, etag = ?, last_synced = ?, event_count = ?, sync_range = ? WHERE url = ?',
+    [meta.calname || null, meta.etag || null, meta.last_synced || null, meta.event_count || null, meta.sync_range || null, meta.url],
   );
   const changed = updated && typeof updated.changes === 'object'
     ? updated.changes.changes
     : updated.changes;
   if (!changed) {
     await db.run(
-      'INSERT INTO calendars (url, calname, etag, last_synced, event_count) VALUES (?, ?, ?, ?, ?)',
-      [meta.url, meta.calname || null, meta.etag || null, meta.last_synced || null, meta.event_count || null],
+      'INSERT INTO calendars (url, calname, etag, last_synced, event_count, sync_range) VALUES (?, ?, ?, ?, ?, ?)',
+      [meta.url, meta.calname || null, meta.etag || null, meta.last_synced || null, meta.event_count || null, meta.sync_range || null],
     );
   }
 }
@@ -135,19 +171,47 @@ function sessionToRow(session) {
   ];
 }
 
-export async function replaceSessionsForCalendar(db, calUrl, sessions) {
-  const list = Array.isArray(sessions) ? sessions : [];
+export async function replaceSessionsForCalendar(db, calUrl, sessions, opts) {
+  const all = Array.isArray(sessions) ? sessions : [];
+  const min = opts && opts.minStartsAt != null ? Number(opts.minStartsAt) : null;
+  const max = opts && opts.maxStartsAt != null ? Number(opts.maxStartsAt) : null;
+  const list = all.filter((session) => {
+    if (!session) return false;
+    const startsAt = Number(session.starts_at);
+    if (min != null && Number.isFinite(min) && startsAt < min) return false;
+    if (max != null && Number.isFinite(max) && startsAt > max) return false;
+    return true;
+  });
   const stmts = [
     { statement: 'DELETE FROM sessions WHERE cal_url = ?', values: [calUrl] },
     ...list.map((session) => ({ statement: INSERT_SQL, values: sessionToRow(session) })),
   ];
   await db.executeSet(stmts);
+  return list.length;
 }
 
 export async function countSessions(db) {
   const result = await db.query('SELECT COUNT(*) AS n FROM sessions');
   const rows = rowsOf(result);
   return rows.length > 0 ? Number(rows[0].n) : 0;
+}
+
+export async function countSessionsInRange(db, minStartsAt, maxStartsAt) {
+  const result = await db.query(
+    'SELECT COUNT(*) AS n FROM sessions WHERE starts_at >= ? AND starts_at <= ?',
+    [minStartsAt, maxStartsAt],
+  );
+  const rows = rowsOf(result);
+  return rows.length > 0 ? Number(rows[0].n) : 0;
+}
+
+export async function getSyncOverview(db) {
+  const result = await db.query('SELECT COUNT(*) AS n, MAX(last_synced) AS lastSynced FROM calendars');
+  const rows = rowsOf(result);
+  return {
+    calendars: rows.length > 0 ? Number(rows[0].n) : 0,
+    lastSynced: rows.length > 0 ? rows[0].lastSynced : null,
+  };
 }
 
 export async function countByType(db) {

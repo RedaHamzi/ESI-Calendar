@@ -1,8 +1,9 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
-import { openDb, getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar } from './db';
+import { openDb, getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds } from './db';
 
 export const FETCH_DELAY_MS = 300;
+export const DEFAULT_SYNC_RANGE = 'year';
 
 export function calendarIdToIcsUrl(calendarId) {
   const id = String(calendarId || '').trim().replace(/&+$/, '');
@@ -72,11 +73,16 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function syncOne(url, options) {
   const force = !!(options && options.force);
+  const range = (options && options.range) || DEFAULT_SYNC_RANGE;
   const db = await openDb();
   const meta = force ? null : await getCalendarMeta(db, url);
+  // A range switch must refetch even when the ETag is fresh, otherwise the
+  // stored rows would keep the previous range's data under the new label.
+  const rangeChanged = !!(meta && meta.sync_range && meta.sync_range !== range);
+  const skipCache = force || rangeChanged;
 
   const headers = {};
-  if (meta && meta.etag) {
+  if (!skipCache && meta && meta.etag) {
     headers['If-None-Match'] = meta.etag;
   }
 
@@ -128,13 +134,15 @@ export async function syncOne(url, options) {
   }
 
   try {
-    await replaceSessionsForCalendar(db, url, parsed.sessions);
+    const bounds = getSyncRangeBounds(range);
+    const stored = await replaceSessionsForCalendar(db, url, parsed.sessions, bounds);
     await upsertCalendarMeta(db, {
       url,
       calname: parsed.calname || null,
       etag: response.headers.get('etag'),
       last_synced: Date.now(),
-      event_count: parsed.sessions.length,
+      event_count: stored,
+      sync_range: range,
     });
   } catch (err) {
     const batchSize = 1 + parsed.sessions.length;
