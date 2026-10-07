@@ -137,6 +137,34 @@ const MorePage = ({ isDark, setIsDark, view, setView }) => {
               </a>
             </div>
           )}
+
+          {current === "about" && (
+            <div className={`rounded-2xl p-4 border ${cardClass}`}>
+              <h3 className={`font-semibold text-base ${textClass}`}>
+                Contact
+              </h3>
+              <div className="mt-2 space-y-1">
+                <a
+                  href="mailto:nm_hamzi@esi.dz"
+                  aria-label="Email nm_hamzi@esi.dz"
+                  className={`flex items-center min-h-[44px] text-sm font-medium active:scale-[0.97] transition-transform ${
+                    isDark ? "text-purple-300" : "text-purple-500"
+                  }`}
+                >
+                  Email: nm_hamzi@esi.dz
+                </a>
+                <a
+                  href="tel:0555414204"
+                  aria-label="Phone 0555414204"
+                  className={`flex items-center min-h-[44px] text-sm font-medium active:scale-[0.97] transition-transform ${
+                    isDark ? "text-purple-300" : "text-purple-500"
+                  }`}
+                >
+                  Phone: 0555414204
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
