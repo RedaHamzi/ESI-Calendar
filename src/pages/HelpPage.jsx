@@ -34,7 +34,7 @@ const SECTIONS = [
     body: [
       "After you sync once from More, then Sync, your schedules stay available offline from the data saved on your device.",
       "If you lose connection later, switch the Schedule tab to Offline to see the saved week.",
-      "To refresh or resize the saved data, open More, then Sync, and pick one year, one month or one week before tapping Sync now.",
+      "To refresh or resize the saved data, open More, then Sync, and pick one month or one week before tapping Sync now.",
     ],
   },
   {

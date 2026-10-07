@@ -1,5 +1,13 @@
 # data.changes.md — `src/data/data.js` merge report
 
+## Round 5: sync range options reduced
+
+- Removed "one year" range option from Sync page.
+- Remaining ranges: 'month' (default) and 'week'.
+- Existing year-scoped data in the DB remains until the next sync of
+  that calendar (sync is full replace per calendar; switching to
+  'month' will shrink stored rows for that calendar).
+
 ## Follow-up: restored rooms
 
 Restored 10 rooms that were dropped in the previous change:

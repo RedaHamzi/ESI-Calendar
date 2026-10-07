@@ -23,7 +23,6 @@ import {
 const RANGE_KEY = "esi-sync-range";
 
 const RANGES = [
-  { id: "year", label: "Sync one year", hint: "Full academic year" },
   { id: "month", label: "Sync one month", hint: "Current calendar month" },
   { id: "week", label: "Sync one week", hint: "Current week, Monday to Sunday" },
 ];
@@ -56,7 +55,9 @@ const SyncPage = ({ isDark, onBack }) => {
   const handleBack = onBack || (() => navigate("/more"));
   const [range, setRange] = useState(() => {
     try {
-      return localStorage.getItem(RANGE_KEY) || DEFAULT_SYNC_RANGE;
+      const stored = localStorage.getItem(RANGE_KEY) || DEFAULT_SYNC_RANGE;
+      // The 'year' range option was removed — migrate to the new default.
+      return stored === "year" ? "month" : stored;
     } catch (e) {
       return DEFAULT_SYNC_RANGE;
     }

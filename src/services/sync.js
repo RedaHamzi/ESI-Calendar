@@ -5,7 +5,7 @@ import { emitSync } from './syncEvents';
 import { useAppStore } from '../store/appStore';
 
 export const FETCH_DELAY_MS = 300;
-export const DEFAULT_SYNC_RANGE = 'year';
+export const DEFAULT_SYNC_RANGE = 'month';
 
 export function calendarIdToIcsUrl(calendarId) {
   const id = String(calendarId || '').trim().replace(/&+$/, '');
