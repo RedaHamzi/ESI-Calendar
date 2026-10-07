@@ -14,11 +14,10 @@ import { useAppStore } from "../store/appStore";
 import { useLocation } from "wouter";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
-  syncAll,
-  getCalendarUrls,
   calendarIdToIcsUrl,
   DEFAULT_SYNC_RANGE,
 } from "../services/sync";
+import { useSyncStore } from "../store/syncStore";
 
 const RANGE_KEY = "esi-sync-range";
 
@@ -62,13 +61,21 @@ const SyncPage = ({ isDark, onBack }) => {
       return DEFAULT_SYNC_RANGE;
     }
   });
-  const [syncing, setSyncing] = useState(false);
-  const [progress, setProgress] = useState(null);
-  const [summary, setSummary] = useState(null);
   const [counts, setCounts] = useState(null);
   const [overview, setOverview] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  // Sync state is global (useSyncStore) so progress survives navigation;
+  // this page only reads the store, never owns the sync promise.
+  const status = useSyncStore((s) => s.status);
+  const syncProgress = useSyncStore((s) => s.progress);
+  const lastError = useSyncStore((s) => s.lastError);
+  const lastSummary = useSyncStore((s) => s.lastSummary);
+  const lastCompletedAt = useSyncStore((s) => s.lastCompletedAt);
+  const syncing = status === "running";
+  const progress = syncing ? syncProgress : null;
+  const summary = lastSummary;
+  const error = lastError || notice;
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -106,7 +113,7 @@ const SyncPage = ({ isDark, onBack }) => {
     try {
       const db = useAppStore.getState().db;
       if (!db) {
-        setError("Database is not ready yet. Reopen the app.");
+        setNotice("Database is not ready yet. Reopen the app.");
         return;
       }
       const [total, monthBounds, weekBounds] = [
@@ -122,7 +129,7 @@ const SyncPage = ({ isDark, onBack }) => {
       setOverview({ ...(await getSyncOverview(db)), total });
     } catch (e) {
       console.error(`SyncPage/loadStats: ${e && e.message ? e.message : e}`);
-      setError("Couldn't read the local database yet. Try reopening the app.");
+      setNotice("Couldn't read the local database yet. Try reopening the app.");
     }
   };
 
@@ -133,37 +140,18 @@ const SyncPage = ({ isDark, onBack }) => {
   const runSync = async (nextRange) => {
     if (syncing) return;
     if (!online) {
-      setError("You are offline. Connect to sync.");
+      setNotice("You are offline. Connect to sync.");
       return;
     }
     const chosen = nextRange || range;
     setRange(chosen);
-    try {
-      localStorage.setItem(RANGE_KEY, chosen);
-    } catch (e) {
-      // storage unavailable — range just won't survive a restart
-    }
-    setSyncing(true);
-    setProgress(null);
-    setSummary(null);
+    setNotice(null);
     setShowDetails(false);
-    setError(null);
     try {
-      const result = await syncAll(
-        getCalendarUrls(),
-        (done, total, currentUrl) => {
-          setProgress({ done, total, current: labelFor(currentUrl) });
-        },
-        { range: chosen },
-      );
-      setSummary(result);
+      await useSyncStore.getState().start(chosen);
       await loadStats();
     } catch (e) {
       console.error(`SyncPage/runSync: ${e && e.message ? e.message : e}`);
-      setError((e && e.message) || String(e));
-    } finally {
-      setSyncing(false);
-      setProgress(null);
     }
   };
 
@@ -256,20 +244,25 @@ const SyncPage = ({ isDark, onBack }) => {
               }`}
             >
               <FiRefreshCw size={18} />
-              {syncing ? "Syncing…" : "Sync now"}
+              {syncing ? "Sync in progress…" : "Sync now"}
             </button>
 
-            {syncing && progress && (
+            {syncing && progress && progress.total > 0 && (
               <p className={`text-sm text-center mt-3 ${textClass}`}>
-                Syncing {progress.done} / {progress.total} — {progress.current}
+                Syncing {progress.done} / {progress.total} — {labelFor(progress.currentLabel)}
+              </p>
+            )}
+            {syncing && (!progress || progress.total === 0) && (
+              <p className={`text-sm text-center mt-3 ${textClass}`}>
+                Syncing…
               </p>
             )}
 
             <p className={`text-xs text-center mt-3 ${mutedClass}`}>
-              {overview && overview.lastSynced ? (
+              {(lastCompletedAt || (overview && overview.lastSynced)) ? (
                 <>
-                  Last synced: {formatRelativeTime(overview.lastSynced)}
-                  {overview.calendars
+                  Last synced: {formatRelativeTime(lastCompletedAt || overview.lastSynced)}
+                  {overview && overview.calendars
                     ? ` · ${overview.calendars} calendars`
                     : ""}
                 </>

@@ -5,6 +5,7 @@ import { App as CapApp } from "@capacitor/app";
 import BottomTabBar from "./components/BottomTabBar";
 import Toast from "./components/Toast";
 import ConfirmDialog from "./components/ConfirmDialog";
+import SyncBanner from "./components/SyncBanner";
 import SchedulePage from "./pages/SchedulePage";
 import TeachersPage from "./pages/TeachersPage";
 import SessionsPage from "./pages/SessionsPage";
@@ -76,6 +77,7 @@ function Shell({
 
   return (
     <div className={`${themeClasses} h-[100vh] flex flex-col overflow-hidden`}>
+      <SyncBanner isDark={isDark} />
       {/* Main content scrolls; header (per page) and tab bar stay fixed */}
       <div className="flex-1 overflow-y-auto overscroll-y-contain">
         <Switch>
