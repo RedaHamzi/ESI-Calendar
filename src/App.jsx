@@ -13,6 +13,7 @@ import { loadLastSelection } from "./utils/history";
 const DebugSync = lazy(() => import("./pages/DebugSync"));
 
 const FIRST_SYNC_KEY = "esi-first-sync-done";
+const SCHEDULE_MODE_KEY = "esi-schedule-mode";
 
 function App() {
   const [list, setList] = useState(classes[0]);
@@ -22,6 +23,16 @@ function App() {
   const [isDark, setIsDark] = useState(true);
   const [toast, setToast] = useState(null);
   const [teacherFocus, setTeacherFocus] = useState(null);
+  const [scheduleMode, setScheduleMode] = useState(() => {
+    try {
+      return localStorage.getItem(SCHEDULE_MODE_KEY);
+    } catch (e) {
+      return null;
+    }
+  });
+  // Ephemeral auto-switch: Online picked while offline renders the cached
+  // view for this session only. Never persisted.
+  const [offlineOverride, setOfflineOverride] = useState(false);
   const online = useOnlineStatus();
   const prevOnline = useRef(null);
 
@@ -79,6 +90,31 @@ function App() {
     }
     prevOnline.current = online;
   }, [online]);
+
+  // The ephemeral offline render ends as soon as connectivity returns.
+  useEffect(() => {
+    if (online) setOfflineOverride(false);
+  }, [online]);
+
+  // Manual schedule mode: 'offline' ignores navigator.onLine; anything else
+  // follows it. Picking Online while offline only auto-switches this render.
+  const effScheduleOffline =
+    scheduleMode === "offline" || offlineOverride || (scheduleMode !== "online" && !online);
+
+  const pickScheduleMode = (mode) => {
+    if (mode === "online" && !online) {
+      setToast({ id: `offline-toggle-${Date.now()}`, message: "You're offline. Showing cached schedule.", action: "Sync" });
+      setOfflineOverride(true);
+      return;
+    }
+    setOfflineOverride(false);
+    setScheduleMode(mode);
+    try {
+      localStorage.setItem(SCHEDULE_MODE_KEY, mode);
+    } catch (e) {
+      // storage unavailable — choice lasts this session only
+    }
+  };
 
   // Silent first-launch background sync (default year range). Never blocks
   // the UI and never shows user-facing errors.
@@ -162,7 +198,9 @@ function App() {
             setType={setType}
             isDark={isDark}
             setIsDark={setIsDark}
-            isOffline={!online}
+            isOffline={effScheduleOffline}
+            scheduleMode={scheduleMode}
+            onPickScheduleMode={pickScheduleMode}
             onGoSync={goSync}
           />
         </div>
