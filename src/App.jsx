@@ -21,6 +21,7 @@ function App() {
   const [moreView, setMoreView] = useState("menu");
   const [isDark, setIsDark] = useState(true);
   const [toast, setToast] = useState(null);
+  const [teacherFocus, setTeacherFocus] = useState(null);
   const online = useOnlineStatus();
   const prevOnline = useRef(null);
 
@@ -124,6 +125,18 @@ function App() {
     setTab("more");
   };
 
+  const seeTeacher = (name) => {
+    setTeacherFocus({ name, ts: Date.now() });
+    setTab("teachers");
+  };
+
+  const seeGroup = (entryType, entry) => {
+    if (!entry) return;
+    setType(entryType === "group" ? "group" : "class");
+    setList(entry);
+    setTab("schedule");
+  };
+
   const themeClasses = isDark
     ? "min-h-screen-mobile bg-slate-900"
     : "min-h-screen-mobile bg-blue-50";
@@ -154,10 +167,21 @@ function App() {
           />
         </div>
         <div className={tab === "teachers" ? "" : "hidden"}>
-          <TeachersPage isDark={isDark} setIsDark={setIsDark} />
+          <TeachersPage
+            isDark={isDark}
+            setIsDark={setIsDark}
+            onGoSync={goSync}
+            focusTeacher={teacherFocus}
+          />
         </div>
         <div className={tab === "sessions" ? "" : "hidden"}>
-          <SessionsPage isDark={isDark} setIsDark={setIsDark} />
+          <SessionsPage
+            isDark={isDark}
+            setIsDark={setIsDark}
+            onGoSync={goSync}
+            onSeeTeacher={seeTeacher}
+            onSeeGroup={seeGroup}
+          />
         </div>
         <div className={tab === "more" ? "" : "hidden"}>
           <MorePage

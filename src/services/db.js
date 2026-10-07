@@ -271,6 +271,56 @@ export async function queryGroupWeekByCalname(db, calname, weekStartMs, weekEndM
   return rowsOf(result);
 }
 
+function escapeLike(value) {
+  return String(value == null ? '' : value).replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+export async function listTeachers(db) {
+  const result = await db.query(
+    "SELECT DISTINCT teacher FROM sessions WHERE teacher IS NOT NULL AND teacher != '' ORDER BY teacher",
+  );
+  return rowsOf(result).map((row) => row.teacher);
+}
+
+export async function queryTeacherWeek(db, teacher, weekStartMs, weekEndMs) {
+  if (!teacher) return [];
+  const minSec = Math.floor(Number(weekStartMs) / 1000);
+  const maxSec = Math.floor(Number(weekEndMs) / 1000);
+  const result = await db.query(
+    'SELECT * FROM sessions WHERE teacher = ? AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC',
+    [teacher, minSec, maxSec],
+  );
+  return rowsOf(result);
+}
+
+export async function querySessionsFiltered(db, { type, subject, minMs, maxMs, limit }) {
+  const clauses = [];
+  const values = [];
+  if (type && type !== 'All') {
+    clauses.push('session_type = ?');
+    values.push(type);
+  }
+  if (subject && String(subject).trim()) {
+    clauses.push("subject LIKE ? ESCAPE '\\'");
+    values.push(`%${escapeLike(String(subject).trim())}%`);
+  }
+  if (minMs != null) {
+    clauses.push('starts_at >= ?');
+    values.push(Math.floor(Number(minMs) / 1000));
+  }
+  if (maxMs != null) {
+    clauses.push('starts_at <= ?');
+    values.push(Math.floor(Number(maxMs) / 1000));
+  }
+  const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+  const capped = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Math.floor(Number(limit)) : 200;
+  const result = await db.query(
+    `SELECT * FROM sessions ${where} ORDER BY starts_at ASC LIMIT ${capped}`,
+    values,
+  );
+  return rowsOf(result);
+}
+
 export async function queryAutreSessions(db, limit) {
   const result = await db.query(
     "SELECT raw_summary, calname, starts_at FROM sessions WHERE session_type = 'Autre' ORDER BY starts_at ASC LIMIT ?",
