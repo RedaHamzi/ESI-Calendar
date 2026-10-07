@@ -8,6 +8,7 @@ import {
   getSchoolWeekSunday,
   formatTimeMs,
 } from "../utils/week";
+import { onSync, isSyncing } from "../services/syncEvents";
 
 const TYPE_OPTIONS = ["All", "Cours", "TD", "TP"];
 const RANGE_OPTIONS = [
@@ -115,6 +116,8 @@ const SessionsPage = ({
   const [sessions, setSessions] = useState(null);
   const [detail, setDetail] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [syncActive, setSyncActive] = useState(() => isSyncing());
+  const [refreshSeq, setRefreshSeq] = useState(0);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -163,7 +166,28 @@ const SessionsPage = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [sessionType, subject, bounds]);
+  }, [sessionType, subject, bounds, refreshSeq]);
+
+  // Same race as Teachers: the mount-time query runs while the silent
+  // first-launch sync is still filling the DB. Re-run on sync events.
+  useEffect(() => {
+    let lastProgress = 0;
+    return onSync((event) => {
+      if (!event) return;
+      if (event.type === "start") {
+        setSyncActive(true);
+      } else if (event.type === "done" || event.type === "error") {
+        setSyncActive(false);
+        setRefreshSeq((n) => n + 1);
+      } else if (event.type === "progress") {
+        const now = Date.now();
+        if (now - lastProgress >= 1000) {
+          lastProgress = now;
+          setRefreshSeq((n) => n + 1);
+        }
+      }
+    });
+  }, []);
 
   const openDetail = async (session) => {
     setDetail({ session, entry: null });
@@ -374,6 +398,23 @@ const SessionsPage = ({
                   </button>
                 );
               })}
+            </div>
+          ) : syncActive && !subject && sessionType === "All" ? (
+            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+              <span
+                aria-hidden="true"
+                className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${
+                  isDark
+                    ? "border-white/30 border-t-white"
+                    : "border-purple-200 border-t-purple-600"
+                }`}
+              />
+              <h2 className={`font-semibold text-lg mt-3 ${textClass}`}>
+                Syncing… (first-time setup)
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                Your sessions are downloading. Results appear automatically.
+              </p>
             </div>
           ) : (
             <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>

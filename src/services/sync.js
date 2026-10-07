@@ -1,6 +1,7 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
 import { openDb, getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds } from './db';
+import { emitSync } from './syncEvents';
 
 export const FETCH_DELAY_MS = 300;
 export const DEFAULT_SYNC_RANGE = 'year';
@@ -157,38 +158,48 @@ export async function syncAll(urls, onProgress, options) {
   const list = Array.isArray(urls) ? urls : getCalendarUrls();
   const total = list.length;
   const summary = { total, updated: 0, unchanged: 0, failed: 0, failures: [] };
+  const range = (options && options.range) || DEFAULT_SYNC_RANGE;
+  emitSync({ type: 'start', range });
 
-  for (let i = 0; i < list.length; i += 1) {
-    const url = list[i];
-    let result;
-    try {
-      result = await syncOne(url, options);
-    } catch (err) {
-      console.error(`syncAll: unexpected error for ${url}: ${err.message}`);
-      result = { url, status: 'error', error: err.message };
-    }
-
-    if (result.status === 'updated') {
-      summary.updated += 1;
-    } else if (result.status === 'unchanged') {
-      summary.unchanged += 1;
-    } else {
-      summary.failed += 1;
-      summary.failures.push({ url, error: result.error || 'unknown' });
-    }
-
-    if (typeof onProgress === 'function') {
+  try {
+    for (let i = 0; i < list.length; i += 1) {
+      const url = list[i];
+      let result;
       try {
-        onProgress(i + 1, total, url);
+        result = await syncOne(url, options);
       } catch (err) {
-        // Progress callbacks must never break the sync loop.
+        console.error(`syncAll: unexpected error for ${url}: ${err.message}`);
+        result = { url, status: 'error', error: err.message };
+      }
+
+      if (result.status === 'updated') {
+        summary.updated += 1;
+      } else if (result.status === 'unchanged') {
+        summary.unchanged += 1;
+      } else {
+        summary.failed += 1;
+        summary.failures.push({ url, error: result.error || 'unknown' });
+      }
+
+      emitSync({ type: 'progress', done: i + 1, total, url });
+
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(i + 1, total, url);
+        } catch (err) {
+          // Progress callbacks must never break the sync loop.
+        }
+      }
+
+      if (i < list.length - 1) {
+        await delay(FETCH_DELAY_MS);
       }
     }
-
-    if (i < list.length - 1) {
-      await delay(FETCH_DELAY_MS);
-    }
+  } catch (err) {
+    emitSync({ type: 'error', message: err?.message || String(err) });
+    throw err;
   }
 
+  emitSync({ type: 'done', updated: summary.updated, failed: summary.failed });
   return summary;
 }

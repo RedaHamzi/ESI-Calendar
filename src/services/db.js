@@ -92,6 +92,13 @@ export async function ensureSchema(db) {
     await db.execute(statement);
   }
   await db.execute("DELETE FROM sessions WHERE session_type NOT IN ('Cours','TD','TP')");
+  // One-time cleanup: legacy rows may carry untrimmed teacher names, which
+  // break the exact-match teacher lookup. Idempotent.
+  try {
+    await db.execute('UPDATE sessions SET teacher = TRIM(teacher) WHERE teacher IS NOT NULL AND teacher != TRIM(teacher)');
+  } catch (e) {
+    console.warn(`ensureSchema: teacher TRIM cleanup skipped: ${e?.message || e}`);
+  }
 }
 
 function rowsOf(result) {
@@ -154,6 +161,7 @@ export async function upsertCalendarMeta(db, meta) {
 }
 
 function sessionToRow(session) {
+  const teacher = session.teacher == null ? null : String(session.teacher).trim() || null;
   return [
     session.uid,
     session.recurrence_id == null ? '' : String(session.recurrence_id),
@@ -161,7 +169,7 @@ function sessionToRow(session) {
     session.calname || null,
     session.subject || null,
     session.session_type || null,
-    session.teacher || null,
+    teacher,
     session.rooms == null ? '[]' : String(session.rooms),
     session.is_online ? 1 : 0,
     session.starts_at,
@@ -277,7 +285,7 @@ function escapeLike(value) {
 
 export async function listTeachers(db) {
   const result = await db.query(
-    "SELECT DISTINCT teacher FROM sessions WHERE teacher IS NOT NULL AND teacher != '' ORDER BY teacher",
+    "SELECT DISTINCT TRIM(teacher) AS teacher FROM sessions WHERE teacher IS NOT NULL AND TRIM(teacher) != '' ORDER BY teacher",
   );
   return rowsOf(result).map((row) => row.teacher);
 }
@@ -286,11 +294,13 @@ export async function queryTeacherWeek(db, teacher, weekStartMs, weekEndMs) {
   if (!teacher) return [];
   const minSec = Math.floor(Number(weekStartMs) / 1000);
   const maxSec = Math.floor(Number(weekEndMs) / 1000);
-  const result = await db.query(
-    'SELECT * FROM sessions WHERE teacher = ? AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC',
-    [teacher, minSec, maxSec],
-  );
-  return rowsOf(result);
+  const sql = 'SELECT * FROM sessions WHERE TRIM(teacher) = TRIM(?) AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC';
+  const params = [teacher, minSec, maxSec];
+  console.log(`[db] queryTeacherWeek sql=${sql} params=${JSON.stringify(params)}`);
+  const result = await db.query(sql, params);
+  const rows = rowsOf(result);
+  console.log(`[db] queryTeacherWeek rows=${rows.length}`);
+  return rows;
 }
 
 export async function querySessionsFiltered(db, { type, subject, minMs, maxMs, limit }) {

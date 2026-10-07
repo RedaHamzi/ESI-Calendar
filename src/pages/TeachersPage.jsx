@@ -5,6 +5,7 @@ import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
 import WeekView from "../components/WeekView";
 import { getSchoolWeekSunday } from "../utils/week";
+import { onSync, isSyncing } from "../services/syncEvents";
 
 const WEEK_OPTIONS = [
   { id: 0, label: "This week" },
@@ -31,6 +32,8 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [sessions, setSessions] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [syncActive, setSyncActive] = useState(() => isSyncing());
+  const [refreshSeq, setRefreshSeq] = useState(0);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -59,6 +62,28 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     return () => {
       cancelled = true;
     };
+  }, [refreshSeq]);
+
+  // Re-query when a sync lands: the mount-time query races the silent
+  // first-launch sync, so without this the list stays stale-empty.
+  // Progress refreshes at most once per second so the list fills in live.
+  useEffect(() => {
+    let lastProgress = 0;
+    return onSync((event) => {
+      if (!event) return;
+      if (event.type === "start") {
+        setSyncActive(true);
+      } else if (event.type === "done" || event.type === "error") {
+        setSyncActive(false);
+        setRefreshSeq((n) => n + 1);
+      } else if (event.type === "progress") {
+        const now = Date.now();
+        if (now - lastProgress >= 1000) {
+          lastProgress = now;
+          setRefreshSeq((n) => n + 1);
+        }
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -77,6 +102,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     const load = async () => {
       setSessions(null);
       try {
+        console.log(`[teachers] detail teacher=${JSON.stringify(selected)} weekOffset=${weekOffset}`);
         const { openDb, queryTeacherWeek } = await import("../services/db");
         const db = await openDb();
         if (cancelled) return;
@@ -90,7 +116,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     return () => {
       cancelled = true;
     };
-  }, [selected, weekOffset]);
+  }, [selected, weekOffset, refreshSeq]);
 
   const filtered = useMemo(() => {
     if (!Array.isArray(teachers)) return [];
@@ -100,6 +126,13 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   }, [teachers, query]);
 
   const bounds = useMemo(() => weekBounds(weekOffset), [weekOffset]);
+
+  // First-time setup: the DB is still empty because the background sync
+  // hasn't landed yet. Show progress instead of a dead "no data" state.
+  const showSyncing = syncActive && !query && filtered.length === 0;
+  const spinnerClass = isDark
+    ? "border-white/30 border-t-white"
+    : "border-purple-200 border-t-purple-600";
 
   if (selected) {
     return (
@@ -194,11 +227,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
             <p className="text-sm text-center text-red-400">{loadError}</p>
           )}
 
-          {teachers === null && !loadError ? (
-            <p className={`text-sm text-center ${subClass}`}>
-              Loading teachers…
-            </p>
-          ) : filtered.length > 0 ? (
+          {filtered.length > 0 ? (
             <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>
               {filtered.map((name) => (
                 <button
@@ -226,6 +255,23 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
                 </button>
               ))}
             </div>
+          ) : showSyncing ? (
+            <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
+              <span
+                aria-hidden="true"
+                className={`inline-block w-6 h-6 rounded-full border-2 animate-spin ${spinnerClass}`}
+              />
+              <h2 className={`font-semibold text-lg mt-3 ${textClass}`}>
+                Syncing… (first-time setup)
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                Your schedules are downloading. The list fills in automatically.
+              </p>
+            </div>
+          ) : teachers === null && !query ? (
+            <p className={`text-sm text-center ${subClass}`}>
+              Loading teachers…
+            </p>
           ) : (
             <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
               <div
