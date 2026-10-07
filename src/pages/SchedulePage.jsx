@@ -1,46 +1,31 @@
 /* eslint-disable react/prop-types */
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 import { FiCloud, FiCloudOff } from "react-icons/fi";
 import SearchBar from "../components/SearchBar";
 import MiniNavigator from "../components/MiniNavigator";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
 import PullToRefresh from "../components/PullToRefresh";
-import { isSyncing } from "../services/syncEvents";
 
 const OfflineSchedule = lazy(() => import("../components/OfflineSchedule"));
-
-function urlsForSelection(list, type, toUrl) {
-  if (!list) return [];
-  if (type === "class" && typeof list.src === "string") {
-    return [toUrl(list.src)];
-  }
-  if (Array.isArray(list.src)) {
-    return list.src
-      .filter((id) => typeof id === "string" && id.trim())
-      .map((id) => toUrl(id));
-  }
-  return [];
-}
 
 const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffline, onPickScheduleMode, onGoSync }) => {
   const nextMode = isOffline ? "online" : "offline";
   const modeLabel = isOffline ? "Offline" : "Online";
+  // Iframe reload key (online refresh) + offline query tick. Kept separate
+  // so an online refresh never touches the DB and an offline refresh never
+  // hits the network.
+  const [iframeKey, setIframeKey] = useState(0);
+  const [offlineTick, setOfflineTick] = useState(0);
 
-  // Pull-to-refresh: sync just the selected calendar(s) with the last used
-  // range, then the sync-done event refreshes every subscribed page.
-  // Skipped while another sync is in flight (writes would interleave).
+  // Pull-to-refresh per the state matrix: ONLINE reloads the iframe(s) by
+  // bumping their key; OFFLINE re-runs the DB query via offlineTick.
   const handleRefresh = async () => {
-    if (isSyncing()) return;
-    const sync = await import("../services/sync");
-    let range = sync.DEFAULT_SYNC_RANGE;
-    try {
-      range = localStorage.getItem("esi-sync-range") || range;
-    } catch (e) {
-      // keep default
+    if (isOffline) {
+      setOfflineTick((n) => n + 1);
+      return;
     }
-    const urls = urlsForSelection(list, type, sync.calendarIdToIcsUrl);
-    await sync.syncAll(urls.length > 0 ? urls : sync.getCalendarUrls(), undefined, { range });
+    setIframeKey((n) => n + 1);
   };
   return (
     <div>
@@ -148,6 +133,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
                 type={type}
                 isDark={isDark}
                 onGoSync={onGoSync}
+                refreshTick={offlineTick}
               />
             </Suspense>
           ) : (
@@ -157,6 +143,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
             }`}
           >
             <iframe
+              key={`desktop-${iframeKey}`}
               src={`https://calendar.google.com/calendar/embed?showTz=0${
                 type == "class"
                   ? `&src=${list.src}`
@@ -169,6 +156,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
               title="Weekly Calendar View"
             ></iframe>
             <iframe
+              key={`mobile-${iframeKey}`}
               src={`https://calendar.google.com/calendar/embed?showTz=0${
                 type == "class"
                   ? `&src=${list.src}`

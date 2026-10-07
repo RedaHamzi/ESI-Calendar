@@ -19,7 +19,7 @@ function urlsForSelection(list, type) {
   return [];
 }
 
-const OfflineSchedule = ({ list, type, isDark, onGoSync }) => {
+const OfflineSchedule = ({ list, type, isDark, onGoSync, refreshTick }) => {
   const [state, setState] = useState({ loading: true, sessions: [], weekSundayMs: null });
   const dbReady = useAppStore((s) => s.dbReady);
   const sessionCount = useAppStore((s) => s.sessionCount);
@@ -78,7 +78,7 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync }) => {
     return () => {
       cancelled = true;
     };
-  }, [list, type, dbReady, sessionCount]);
+  }, [list, type, dbReady, sessionCount, refreshTick]);
 
   return (
     <div
