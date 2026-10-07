@@ -7,6 +7,7 @@ import {
   FiFlag,
 } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
+import { useLocation } from "wouter";
 
 const SECTIONS = [
   {
@@ -58,6 +59,8 @@ const SECTIONS = [
 ];
 
 const HelpPage = ({ isDark, onBack }) => {
+  const [, navigate] = useLocation();
+  const handleBack = onBack || (() => navigate("/more"));
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
     : "bg-white/80 border-purple-200";
@@ -67,7 +70,7 @@ const HelpPage = ({ isDark, onBack }) => {
 
   return (
     <div>
-      <PageHeader title="Help" isDark={isDark} onBack={onBack} />
+      <PageHeader title="Help" isDark={isDark} onBack={handleBack} />
       <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           {SECTIONS.map(({ Icon, title, body, steps, link }) => (

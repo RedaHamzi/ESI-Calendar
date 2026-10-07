@@ -11,6 +11,7 @@ import {
   getSyncRangeBounds,
 } from "../services/db";
 import { useAppStore } from "../store/appStore";
+import { useLocation } from "wouter";
 import {
   syncAll,
   getCalendarUrls,
@@ -50,6 +51,8 @@ function formatRelativeTime(ms) {
 }
 
 const SyncPage = ({ isDark, onBack }) => {
+  const [, navigate] = useLocation();
+  const handleBack = onBack || (() => navigate("/more"));
   const [range, setRange] = useState(() => {
     try {
       return localStorage.getItem(RANGE_KEY) || DEFAULT_SYNC_RANGE;
@@ -167,7 +170,7 @@ const SyncPage = ({ isDark, onBack }) => {
 
   return (
     <div>
-      <PageHeader title="Sync" isDark={isDark} onBack={onBack} />
+      <PageHeader title="Sync" isDark={isDark} onBack={handleBack} />
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">

@@ -9,18 +9,12 @@ export const initializeApp = () => {
   applyStatusBarTheme(savedTheme ? savedTheme === 'dark' : true);
 
   // Handle app state changes
+  // NOTE: the Android hardware back button is owned by useBackButton
+  // (route-aware: exit-confirm on "/", history.back() elsewhere).
+  // Do NOT add a second backButton listener here.
   if (typeof App !== 'undefined') {
     App.addListener('appStateChange', ({ isActive }) => {
       console.log('App state changed. Is active?', isActive);
-    });
-
-    // Handle back button on Android
-    App.addListener('backButton', ({ canGoBack }) => {
-      if (!canGoBack) {
-        App.exitApp();
-      } else {
-        window.history.back();
-      }
     });
   }
 };
