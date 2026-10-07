@@ -110,6 +110,7 @@ const SearchBar = ({ setList, type, isDark }) => {
           className={`w-full ${inputBg} ${inputText} ${inputPlaceholder} pl-12 pr-12 py-4 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-base ${inputBorder}`}
           type="text"
           placeholder={`Search ${type}...`}
+          aria-label={`Search ${type}`}
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);

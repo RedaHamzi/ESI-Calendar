@@ -21,17 +21,18 @@
 
 - **Name:** `esi-agenda` in `package.json:2`, branded `ESICalendar` / `ESI Calendar` in `capacitor.config.json:3`, `index.html:7`, `public/manifest.json:1-3`.
 - **Purpose:** Single-page viewer for ESI school timetables. No custom calendar rendering — it embeds public Google Calendars in `<iframe>`s (`src/App.jsx:145-168`). Tagline in `index.html:10`: "one place calendar to check for a class' availability or a group's schedule!".
-- **Main user flows (four bottom tabs, no routing):**
-  - **Schedule (FiCalendar, default tab):** existing screen. **By classroom ("Classes" toggle):** user picks a room (e.g. `A1`, `CP1`, `S24`) via `SearchBar`, schedule for that one Google resource calendar is shown. **By group ("Groups" toggle):** user taps `Groups` (outlined users icon) in `MiniNavigator`, picks a student section (e.g. `1CP A G01`, `2CS SIL G01`, `Master`), schedule is an overlay of 1–2 Google group calendars. The Classes/Groups toggle lives inside the Schedule screen; the bottom tab bar is the global nav.
-  - **Teachers (FiUser):** search teachers from the offline DB, tap one for a This/Next-week view.
-  - **Sessions (FiList):** filter all sessions by type/subject/week, tap a row for a detail sheet with "See this teacher" / "See this group" jumps.
-  - **More (FiMenu):** Sync (year/month/week offline sync), Help, About.
-- **Online/offline duality:** ONLINE renders the Google Calendar iframe embeds (default, faster to first paint); OFFLINE renders the schedule from the local SQLite DB (`OfflineSchedule` + `WeekView`) with a toast. First launch with internet silently syncs the full year in the background.
+- **Main user flows (four bottom tabs, real routes via wouter):**
+  - **Schedule (FiCalendar, `/`):** existing screen. **By classroom ("Classes" toggle):** user picks a room (e.g. `A1`, `CP1`, `S24`) via `SearchBar`, schedule for that one Google resource calendar is shown. **By group ("Groups" toggle):** user taps `Groups` (outlined users icon) in `MiniNavigator`, picks a student section (e.g. `1CP A G01`, `2CS SIL G01`, `Master`), schedule is an overlay of 1–2 Google group calendars. The Classes/Groups toggle lives inside the Schedule screen; the bottom tab bar is the global nav.
+  - **Teachers (FiUser, `/teachers`):** search teachers from the offline DB, tap one for a This/Next-week view.
+  - **Sessions (FiList, `/sessions`):** filter all sessions by type/subject/week, tap a row for a detail sheet with "See this teacher" / "See this group" jumps.
+  - **More (FiMenu, `/more`):** Sync (`/more/sync`, year/month/week offline sync), Help (`/more/help`), About (`/more/about`).
+- **Online/offline duality:** ONLINE renders the Google Calendar iframe embeds; OFFLINE renders the schedule from the local SQLite DB (`OfflineSchedule` + `WeekView`) with a toast. Sync happens ONLY when the user taps a sync button on the Sync page — there is no silent/background first-launch sync.
 - **Supported platforms via Capacitor:**
   - Web (Vite dev server / `dist/` static build, also deployed to `https://esi-calendar.vercel.app` per `index.html:12`).
   - Android (native project checked in at `android/`; appId `com.esi.calendar`).
   - iOS (dependency `@capacitor/ios` installed and npm scripts present, but **no `ios/` native folder checked in** — Unclear / not found whether iOS was ever generated).
-- **Tab navigation (still no router):** `src/App.jsx` owns `tab` (`"schedule"|"teachers"|"sessions"|"more"`) plus the schedule state (`list`, `type`). All four tab pages stay mounted and hide with `hidden` so the Schedule iframes don't reload on tab switches. Cross-tab jumps (`goSync`, `seeTeacher`, `seeGroup`) are callbacks owned by `App`; `MorePage`'s sub-view (`menu|sync|help|about`) is `App`-owned `moreView` so the offline empty state can deep-link straight to Sync.
+- **Tab navigation (wouter routes):** route table `/` → SchedulePage, `/teachers` → TeachersPage, `/sessions` → SessionsPage, `/more` → MorePage (menu), `/more/sync` → SyncPage, `/more/help` → HelpPage, `/more/about` → AboutPage. `src/App.jsx` owns the schedule state (`list`, `type`) plus cross-tab jumps (`goSync` → `/more/sync`, `seeTeacher` → `/teachers` with focus, `seeGroup` → `/` with selection); the bottom tab bar highlights the matching top-level tab regardless of sub-route (so `/more/sync` highlights "More").
+- **Android back button (route-aware, `src/hooks/useBackButton.js`):** on `/` shows the exit-confirmation modal (`ConfirmDialog`: "Close ESI Calendar?" Cancel / Close → `App.exitApp()`); elsewhere `window.history.back()`, falling back to `/`. The old unconditional-exit listener was removed from `src/utils/capacitor.js` — do NOT add a second backButton listener there.
 
 ## 2. Tech Stack
 
@@ -55,6 +56,8 @@ Exact versions from `package.json:21-46` (all caret ranges):
 | CSS | `daisyui` | `^3.9.4` (v3 line to match Tailwind v3) | Tailwind plugin, `themes: ["light"]` only |
 | CSS | `autoprefixer` | `^10.4.14` | PostCSS |
 | Font | `@fontsource/cairo` | `^5.3.0` (npm; weights 400/500/600/700) | bundled by Vite into `dist/assets/*.woff2`, no CDN import, no `public/fonts/` |
+| State | `zustand` | `^5` | single source of truth (`src/store/appStore.js`): `db`/`dbReady`, `sessionCount`, `syncStatus`/`syncProgress` |
+| Router | `wouter` | `^3` | route table (§4); no react-router |
 | Build | `vite` | `^7.1.12` | `vite.config.js`, outDir `dist` |
 | Build | `@vitejs/plugin-react` | `^4.0.0` | |
 | Assets | `@capacitor/assets` | `^3.0.5` | devDependency; `assets:generate` script (needs `resources/splash.png` + `icon.png`) |
@@ -62,8 +65,8 @@ Exact versions from `package.json:21-46` (all caret ranges):
 | Types | `@types/react`, `@types/react-dom` | `^18.0.x` | present but code is JS, no TS usage |
 
 - **Language:** JavaScript (JSX), not TypeScript. No `tsconfig.json` found.
-- **Router:** none (no `react-router`). Navigation = `useState("class"|"group")` in `src/App.jsx:10`.
-- **State management:** none (no Redux/Zustand/Context). Local `useState` + `useEffect` only.
+- **Router:** `wouter` (`<Router>` + `<Switch>` + `<Route>` in `src/App.jsx`; `useLocation` navigations). If wouter proves too limited, STOP and ask before adding react-router.
+- **State management:** `zustand` (`src/store/appStore.js`) for `db`/`dbReady`/`dbError`, `sessionCount`/`calendarsSynced`/`lastSyncedAt`, `syncStatus`/`syncProgress`/`syncError`, and the `teachers` list cache. All other UI state is local `useState` + `useEffect`.
 - **HTTP client:** none (no `fetch`/`axios` calls in `src/`; schedule data comes from Google embed iframes).
 - **i18n:** none. All UI strings hardcoded English; icons are outlined `react-icons/fi` components, no emoji.
 - **Native plugins used and why:**
@@ -98,6 +101,7 @@ code/                            # repo root (= npm project root)
 │   ├── services/sync.js         # Phase 1: serial ICS fetch + ETag cache + write-through to SQLite
 │   ├── services/db.js           # Phase 1: `esi_calendar` SQLite open / migrate / query helpers
 │   ├── pages/DebugSync.jsx      # Phase 1: hidden lazy-loaded sync debug screen (localStorage-gated)
+│   ├── pages/AboutPage.jsx      # Phase 3: About content extracted from MorePage (route /more/about)
 │   ├── pages/SchedulePage.jsx   # Phase 2: schedule tab (SearchBar + MiniNavigator + iframes online / OfflineSchedule offline)
 │   ├── pages/TeachersPage.jsx   # Phase 2: teacher search + week detail (WeekView)
 │   ├── pages/SessionsPage.jsx   # Phase 2: type/subject/week filters + detail bottom sheet
@@ -105,7 +109,11 @@ code/                            # repo root (= npm project root)
 │   ├── pages/SyncPage.jsx       # Phase 2: user-facing sync (year/month/week), lazy-loaded
 │   ├── pages/HelpPage.jsx       # Phase 2: five help cards (what/find/offline/unavailable/wrong)
 │   ├── hooks/useOnlineStatus.js # Phase 2: navigator.onLine + online/offline listeners
+│   ├── hooks/useAppState.js     # Phase 3: CASE A/B/C/D flags (online, hasData, showSyncCTA, canQueryDb)
+│   ├── hooks/useBackButton.js   # Phase 3: Android hardware back button wired to routes + exit confirm
+│   ├── store/appStore.js        # Phase 3: Zustand single source of truth (db, counts, sync, teachers cache)
 │   ├── components/BottomTabBar.jsx  # Phase 2: fixed 4-tab bar (FiCalendar/FiUser/FiList/FiMenu), safe-area bottom
+│   ├── components/ConfirmDialog.jsx # Phase 3: Cancel/Confirm modal (exit confirmation); not outside-dismissible
 │   ├── components/PageHeader.jsx     # Phase 2: 48px title + optional back (FiChevronLeft) + action slot
 │   ├── components/Toast.jsx          # Phase 2: offline toast (5s auto-dismiss, tap/swipe, Sync action)
 │   ├── components/WeekView.jsx       # Phase 2: Dimanche→Jeudi grid, 08:30–17:00 rows, type-colored blocks
@@ -130,12 +138,12 @@ code/                            # repo root (= npm project root)
 
 ## 4. Architecture & Data Flow
 
-- **Navigation (no router):**
-  - Global route = `tab` state in `src/App.jsx` (`"schedule"|"teachers"|"sessions"|"more"`), rendered by `BottomTabBar` (`src/components/BottomTabBar.jsx`).
-  - Inside Schedule, one state variable owns the Classes/Groups toggle: `const [type, setType] = useState("class")` (now in `App`, passed to `SchedulePage`).
+  - **Navigation (wouter routes, Phase 3):**
+  - Route table: `/` → SchedulePage, `/teachers` → TeachersPage, `/sessions` → SessionsPage, `/more` → MorePage (menu), `/more/sync` → SyncPage, `/more/help` → HelpPage, `/more/about` → AboutPage. The tab bar highlights the top-level tab for sub-routes.
+  - Inside Schedule, one state variable owns the Classes/Groups toggle: `const [type, setType] = useState("class")` (in `App`, passed to `SchedulePage`).
   - `MiniNavigator` (`src/components/MiniNavigator.jsx:11-30`) renders two buttons; clicking sets `type` and resets selection to `classes[0]` / `groups[0]`.
   - `SearchBar` resets its text input whenever `type` changes (`src/components/SearchBar.jsx:12-15`).
-  - Android back button: `App.addListener('backButton', ...)` in `src/utils/capacitor.js:18-24` — `App.exitApp()` if `!canGoBack`, else `window.history.back()`. Since there is no history/routing, effectively always exits.
+  - Android back button: route-aware `useBackButton` (`src/hooks/useBackButton.js`) — exit-confirm modal on `/`, `window.history.back()` elsewhere, `/` fallback. Since routes unmount pages, Schedule iframes reload on tab switches (accepted tradeoff for real routing).
 - **Data fetching: Google embed iframes are the ONLINE path; SQLite is the OFFLINE fallback:**
   - ONLINE (default): schedule = Google Calendar embed URL in iframe — base URL hardcoded in `src/pages/SchedulePage.jsx` (moved verbatim from `App.jsx`): `https://calendar.google.com/calendar/embed?showTz=0…`.
   - OFFLINE (`navigator.onLine === false` via `useOnlineStatus`): `OfflineSchedule` queries the DB for the selected item's week (`querySessionsByCalUrls` on the item's ICS urls, `queryGroupWeekByCalname` on the title as fallback) and renders `WeekView`; with no rows it shows "No offline data…" + a Sync-now button that deep-links to More → Sync.
@@ -146,7 +154,7 @@ code/                            # repo root (= npm project root)
   - Desktop (`hidden md:block`) iframe uses `mode=WEEK`; mobile (`block md:hidden`) iframe uses `mode=AGENDA&dates=20090401/20501231&showTitle=1&showDate=0&showTabs=1` (`src/App.jsx:145-168`).
   - No API keys, no `fetch`, no caching, no offline bundle — requires live internet + access to those public Google calendars.
   - Static catalogs only: `src/data/data.js` exports `classes` and `groups` (calendar IDs, see §6). No mock server, no SQLite, no local JSON fetch.
-  - Only persistence besides SQLite: `localStorage key "esi-calendar-theme"` → `"dark"|"light"`, plus search history keys `esi-calendar-recent-classes` / `esi-calendar-recent-groups`, last-selection key `esi-calendar-last-selection` (see "Search history" below), sync-range key `esi-sync-range`, and first-sync flag `esi-first-sync-done`. The on-device SQLite database (`esi_calendar`) backs the offline Schedule/Teachers/Sessions tabs and the Sync page counts.
+  - Only persistence besides SQLite: `localStorage key "esi-calendar-theme"` → `"dark"|"light"`, plus search history keys `esi-calendar-recent-classes` / `esi-calendar-recent-groups`, last-selection key `esi-calendar-last-selection` (see "Search history" below) and sync-range key `esi-sync-range`. (The `esi-first-sync-done` flag was removed with the silent sync in Phase 3.) The on-device SQLite database (`esi_calendar`) backs the offline Schedule/Teachers/Sessions tabs and the Sync page counts.
 - **Offline sync (Phase 1 pipeline + Phase 2 ranges):**
   - ICS feeds are the source; the URL list is derived at runtime from `data.js` (unique union of `classes[*].src` and every id inside `groups[*].src`, via `getCalendarUrls()` in `src/services/sync.js`, mapped to `https://calendar.google.com/calendar/ical/<id>/public/basic.ics`).
   - Fetch → parse (`src/services/ics.js`) → store (SQLite via `src/services/db.js`).
@@ -155,10 +163,16 @@ code/                            # repo root (= npm project root)
   - Recurrence expansion via `ical.js` (`RecurExpansion`); occurrences before 2025-01-01 are skipped (filters VTIMEZONE-era noise and stale history).
   - Sessions are stored with `rooms` as a JSON array column (Option A: one row per occurrence), `is_online` boolean, and `raw_summary` for debugging.
   - Sync ranges (Phase 2): `syncAll(urls, onProgress, { range })` with `range = 'year'|'month'|'week'` (default `'year'` = current behavior). Bounds come from `getSyncRangeBounds()` in `db.js` (year = 2025-09-01→2026-08-31 UTC; month = current calendar month; week = current ISO Mon→Sun) and are applied at INSERT time in `replaceSessionsForCalendar(db, calUrl, sessions, { minStartsAt, maxStartsAt })` — parse stays pure. The chosen range is stored per calendar in `calendars.sync_range`; a range switch bypasses the ETag cache so rows are refetched instead of relabeled. Sync is always full replace per calendar (DELETE + INSERT), no merge.
-  - Silent first-launch sync (Phase 2): on mount, if online and `localStorage['esi-first-sync-done']` is missing and the DB is empty, `App` fires `syncAll(..., { range: 'year' })` in the background (dynamic import, no modal/banner, failures only logged) and sets the flag on success.
+  - Silent first-launch sync: REMOVED (Phase 3). Sync is user-triggered only via the Sync page buttons. The `esi-first-sync-done` flag is gone.
   - No UI in Phase 1 beyond the hidden debug screen; existing embeds remain the user-facing source until Phase 2.
+- **State-based UI matrix (Phase 3).** On launch: `hasInternet = navigator.onLine`, `hasData = (countSessions() > 0)` (via `useAppState()`). Sync happens ONLY on user tap (no silent first-launch sync; `esi-first-sync-done` is gone):
+  - **CASE A — hasInternet && hasData:** Schedule: Online = iframes, Offline = WeekView from DB (both work). Teachers: list + sessions from DB. Sessions: filtered list from DB. Sync page: "Last synced: X" + re-sync option.
+  - **CASE B — hasInternet && !hasData:** Schedule: Online = iframes (works); Offline = "Sync needed. Go to Sync →" button to `/more/sync`. Teachers/Sessions: "Database is empty." + "Sync database" button to `/more/sync`.
+  - **CASE C — !hasInternet && hasData:** Schedule: Offline = WeekView from DB (works); tapping Online shows toast "You're offline." and stays on the cached view. Teachers/Sessions work from DB.
+  - **CASE D — !hasInternet && !hasData:** every data-driven page shows "No data available. Connect to the internet and sync to use the app offline." with a Sync button to `/more/sync`; the Sync page itself shows a "No internet" state with disabled buttons.
+- **DB lifecycle (Phase 3):** `openDb()` is a singleton promise (`src/services/db.js`) — the plugin's `createConnection` is not idempotent, so concurrent calls raised "Connection esi_calendar already exists". `App.jsx` is the ONLY `openDb()` caller (once, on mount); everything else reads `useAppStore.getState().db`. `refreshCounts()` writes `sessionCount`/`calendarsSynced`/`lastSyncedAt` (+ warms the `teachers` cache) to the store. `syncAll()` reports start/progress/done/error into the store so every page reacts without prop drilling. Nothing queries until `dbReady === true`; while `!dbReady` pages show a lightweight centered spinner.
 - **State management:**
-  - `src/App.jsx`: `list` (selected classroom/group object), `type` (`"class"|"group"`), `tab` (global bottom-tab route), `moreView` (More sub-view), `isDark` (default `true`, hydrated from localStorage), `toast` (offline notice), `teacherFocus` (cross-tab teacher jump). The `isDark` effect also calls `applyStatusBarTheme(isDark)`.
+  - `src/store/appStore.js` (Zustand) is the ONLY source of truth for `dbReady`, `syncStatus`, `sessionCount` (plus `teachers` cache). Components subscribe to it, never re-query these values on their own.
   - `SearchBar` local state: `inputValue`, `isOpen`, `dropdownRef` (declared but never used beyond ref attach).
   - Props drilling only: `App` passes `setList/setType/type/isDark` down; no Context/store.
 - **Search history:**
@@ -184,10 +198,12 @@ code/                            # repo root (= npm project root)
 
 ## 5. Key Components & Screens
 
-- **Screens/routes:** four tabs, no router. `src/App.jsx` owns `tab` + schedule state and cross-tab jumps; each page renders its own `PageHeader`.
+- **Screens/routes:** seven wouter routes (see §4). `src/App.jsx` owns schedule state and cross-tab jumps; each page renders its own `PageHeader`. While `!dbReady`, data pages show a centered spinner; Teachers/Sessions gate all queries on `canQueryDb` (`hasData`).
+  - `src/App.jsx` (`App`, no props) — owns schedule state + theme + toast; single `openDb()` caller; `<Router>` + `<Switch>` shell with always-mounted bottom tab bar and exit `ConfirmDialog`.
   - `src/App.jsx` (`App`, no props) — owns all page state; composes header (title + `ThemeToggle`), `SearchBar` + `MiniNavigator`, selected-item card, two responsive iframes (desktop WEEK / mobile AGENDA), footer GitHub link (`https://github.com/RedaHamzi/ESI-Calendar`). On mount it restores the last selection from `esi-calendar-last-selection` (`loadLastSelection()`) when the title still exists in `classes`/`groups`.
 - **Reusable components (all in `src/components/`, all default-exported, all `isDark`-aware):**
-  - `BottomTabBar.jsx` — `BottomTabBar({ active, onChange, isDark })`. Fixed bottom 4-tab bar, `env(safe-area-inset-bottom)`, 60px touch rows, 20px outlined icons + 11px labels, indigo top-indicator for the active tab, `active:scale-[0.97]`, `role="tablist"`.
+  - `BottomTabBar.jsx` — `BottomTabBar({ active, onChange, isDark })`. Fixed bottom 4-tab bar, `env(safe-area-inset-bottom)`, 60px touch rows, 20px outlined icons + 11px labels, indigo top-indicator for the active tab, `active:scale-[0.97]`, `role="tablist"`. `active` is the top-level tab derived from the route.
+  - `ConfirmDialog.jsx` — `ConfirmDialog({ title, message, confirmLabel, isDark, onCancel, onConfirm })`. Non-outside-dismissible Cancel/Confirm modal; used for the Android exit confirmation.
   - `PageHeader.jsx` — `PageHeader({ title, isDark, onBack, action })`. Compact ~48px header, `safe-area-top`, optional back arrow (FiChevronLeft) + right action slot (usually `ThemeToggle`).
   - `Toast.jsx` — `Toast({ message, actionLabel, onAction, onClose, isDark })`. Fixed above the tab bar, 5 s auto-dismiss, tap/swipe dismiss, optional action button.
   - `WeekView.jsx` — `WeekView({ sessions, weekSundayMs, isDark })`. Dimanche→Jeudi grid × 08:30–17:00 hour rows; blocks show subject + time + rooms + type badge; Cours = indigo, TD = emerald, TP = amber (subdued tones both themes); empty cells render nothing.
@@ -271,6 +287,13 @@ CREATE INDEX IF NOT EXISTS idx_sessions_teacher ON sessions(teacher);
 CREATE INDEX IF NOT EXISTS idx_sessions_type    ON sessions(session_type);
 CREATE INDEX IF NOT EXISTS idx_sessions_starts  ON sessions(starts_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname);
+CREATE INDEX IF NOT EXISTS idx_sessions_cal_url ON sessions(cal_url);
+CREATE INDEX IF NOT EXISTS idx_sessions_cal_starts ON sessions(cal_url, starts_at);
+
+-- Phase 3: materialized teacher list (SELECT DISTINCT over ~25k rows is
+-- slow on device). Rebuilt once per sync via rebuildTeachersTable();
+-- listTeachers() reads this table, falling back to DISTINCT when empty.
+CREATE TABLE IF NOT EXISTS teachers (name TEXT PRIMARY KEY);
 ```
 - **Catalog quirks (in-file):** `1CP C G10` first `src` has a trailing `&` (`src/data/data.js:317`); `1CP C G12` lists the same calendar ID twice (`:330-332`); `2CP A G04` `src` array has a single `c_…%40group.calendar.google.com` entry while siblings have two.
 
@@ -280,10 +303,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname);
   - `src/services/ics.js` — pure parsing, no I/O. `parseIcs(icsText, calUrl)` → `{ calname, sessions[] }` using `ical.js` (`RecurExpansion` for RRULE, EXDATE skip, RECURRENCE-ID override replacement, 365-day expansion cap, pre-2025-01-01 cutoff, SUMMARY/LOCATION rules). Also exports `parseSummary`, `parseRooms`, `normalizeTypeWord` helpers.
     - LOCATION parsing handles bare room names, bracketed single/multi-room arrays, comma- AND plus-separated multi-room values ("S18+S19" -> ["S18","S19"]), building-coded rooms with any two-letter prefix ("DE-0-S4 (25)" -> "S4", "BP-0-SCBP (100)" -> "SCBP"), and named rooms. Ambiguous values such as "DA-DG-A-DG-A (30)" are rejected. Unparseable locations yield rooms = '[]' rather than guessing and trigger a console.warn. Rooms are deduplicated (encounter order preserved). The raw LOCATION string is preserved in sessions.raw_location.
     - SUMMARY parsing supports the online prefix in two positions: glued to the type word with an optional dot/dash/space separator ("eCours", "e.TD", "e-TD", "e TD" — regex `/^e[.\-\s]?(Cours|TD|TP)$/i` on the first token plus a lone-"e" shift rule) and glued to the subject ("TD e-LOGM", "TD e-SINF"). Both set is_online = 1 and strip the prefix before classification.
-  - `src/services/sync.js` — `syncAll(urls, onProgress, { range, force })` (serial fetch, 300 ms between requests; `If-None-Match` from `calendars.etag`, 304 = skip; per-calendar DELETE + transactional batch INSERT + meta UPSERT; per-URL errors are logged and skipped without aborting) and `syncOne(url, options)`. `getCalendarUrls()` derives the unique ICS URL list from `classes`/`groups` in `src/data/data.js` — the list is never hardcoded. `range` (`'year'|'month'|'week'`, default `'year'`) filters at INSERT time; a per-calendar range switch bypasses the ETag cache. `SyncPage` persists the choice in `localStorage['esi-sync-range']`; first-launch completion is `localStorage['esi-first-sync-done'] = '1'`.
+  - `src/services/sync.js` — `syncAll(urls, onProgress, { range, force })` (serial fetch, 300 ms between requests; `If-None-Match` from `calendars.etag`, 304 = skip; per-calendar DELETE + transactional batch INSERT + meta UPSERT; per-URL errors are logged and skipped without aborting) and `syncOne(url, options)`. Reads the DB from the Zustand store (App root is the only `openDb()` caller) and reports start/progress/done/error into the store (`setSyncStatus`/`setSyncProgress`/`refreshCounts`); also rebuilds the `teachers` table once per sync. `getCalendarUrls()` derives the unique ICS URL list from `classes`/`groups` in `src/data/data.js` — the list is never hardcoded. `range` (`'year'|'month'|'week'`, default `'year'`) filters at INSERT time; a per-calendar range switch bypasses the ETag cache. `SyncPage` persists the choice in `localStorage['esi-sync-range']`. There is no automatic sync — every sync starts from a Sync-page button.
     - The calendar ID is used verbatim in the URL. Data.js stores IDs in two forms: URL-encoded email style ("esi.dz_xxx%40group.calendar.google.com") and legacy base64 ("ZXNpLmR6Xz..."). BOTH must be passed unchanged to https://calendar.google.com/calendar/ical/<id>/public/basic.ics. Do NOT strip prefixes, do NOT split on underscores, do NOT base64-decode. Note: because data.js IDs are already URL-encoded (`%40`), do NOT wrap the interpolation in `encodeURIComponent` — that double-encodes `%40` to `%2540` and produces HTTP 404 (verified by curl).
     - Google Calendar ICS endpoint accepts only email-form calendar IDs ("xxx@group.calendar.google.com" or URL-encoded "xxx%40group.calendar.google.com"). It rejects the base64 form ("ZXNpLmR6Xz...") with HTTP 404, even though the same calendar renders fine in the embed iframe with that form. sync.js runs every id through normalizeCalendarId() before building the fetch URL: base64 ids are decoded to email form, email ids are passed through unchanged. Data.js is left alone — the iframe embed still uses the raw values. DB keys, the ETag cache, and the calendars table keep the raw (pre-normalization) URL so existing rows stay matched.
-  - `src/services/db.js` — `openDb()` (singleton connection + `ensureSchema`), `ensureSchema(db)`, `getCalendarMeta` / `upsertCalendarMeta` (incl. `sync_range`), `replaceSessionsForCalendar` (transactional replace + `opts.minStartsAt/maxStartsAt` range filter at INSERT time, returns stored count), `countSessions`, `countSessionsInRange`, `getSyncOverview`, `getSyncRangeBounds(range, nowMs)`, `querySessionsByCalUrls` (chunked parameterized IN), `queryGroupWeekByCalname`, `listTeachers`, `queryTeacherWeek`, `querySessionsFiltered` (type/subject LIKE ESCAPE/min/max, limit 200), `countByType`, `queryUpcomingByTeacher`, `queryUpcomingByType`.
+  - `src/services/db.js` — `openDb()` (SINGLETON promise + `ensureSchema`; App root is the only caller — never call it from pages/components, read the store instead), `ensureSchema(db)` (incl. idempotent teacher/subject TRIM cleanups), `getCalendarMeta` / `upsertCalendarMeta` (incl. `sync_range`), `replaceSessionsForCalendar` (transactional replace + `opts.minStartsAt/maxStartsAt` range filter at INSERT time, returns stored count), `countSessions`, `countSessionsInRange`, `getSyncOverview`, `getSyncRangeBounds(range, nowMs)`, `querySessionsByCalUrls` (chunked parameterized IN; logs URL count + row count), `queryGroupWeekByCalname` (logs calname + row count), `listTeachers` (teachers-table first, DISTINCT fallback, logs ms), `rebuildTeachersTable`, `queryTeacherWeek` (logs SQL + rows), `querySessionsFiltered` (type/subject LIKE ESCAPE/min/max, limit 200; logs SQL + rows), `countByType`, `queryUpcomingByTeacher`, `queryUpcomingByType`.
   - DebugSync exposes a "Stored session_type breakdown" table (`SELECT session_type, COUNT(*) FROM sessions GROUP BY 1` — expect exactly Cours/TD/TP rows, any other value is a bug) plus three diagnostic lists (Autre summaries, empty-rooms with raw_location, online sessions — first 20 rows each with full counts and a "Copy as JSON" button), used to surface unrecognized SUMMARY and LOCATION formats during dev.
   - DB writes: each calendar's delete+insert batch is issued via a single db.executeSet([...]) call. Do NOT wrap executeSet in a manual db.beginTransaction() — executeSet opens its own transaction and nesting causes SQLite "beginTransactionAlready in transaction".
 - **Request/response shapes:** the only "requests" besides the sync pipeline are browser navigations of the Google embed iframes to `https://calendar.google.com/calendar/embed?...&src=<id>...`. Sync fetches `https://calendar.google.com/calendar/ical/<id>/public/basic.ics` and parses the ICS response body.
@@ -352,11 +375,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname);
 - **Fonts come from npm:** do not add `@import url(...googleapis...)` anywhere; fonts are provided by `@fontsource/cairo`, not self-hosted woff2, not a CDN import. Reintroducing a CDN import is a regression.
 - **Search history cap:** history is capped at 5 per type; increasing the cap requires updating both `history.js` (`MAX_ITEMS`) and the history chip-strip UI.
 - **Search history and last selection are persisted in localStorage (`esi-calendar-recent-classes`, `esi-calendar-recent-groups`, `esi-calendar-last-selection`). Clear them via the history strip's Clear button or by wiping localStorage.**
-- **No heavy dependencies: nothing heavier than 50kB gzipped. No router, no Redux/Zustand, no animation library — CSS + React state only. Sync/DB-heavy code stays in lazy chunks (`SyncPage`, `OfflineSchedule`, `sync`/`db`) so the online first paint stays lean.**
+- **No heavy dependencies: only `zustand` (~1kB) + `wouter` (~1.5kB) beyond the Phase 2 set — explicitly authorized, overriding the earlier constraint. No react-router, no TanStack Query, no SWR, no immer. If wouter proves too limited, STOP and ask before adding react-router. Sync/DB-heavy code stays in lazy chunks (`SyncPage`, `OfflineSchedule`, `sync`/`db`) so the online first paint stays lean.**
 - **Tailwind stays on v3 (see pin note above). Outlined `react-icons/fi` only — no emoji, no filled Bootstrap. All UI strings English, no i18n framework.**
 - **2CP C G09 and 2CP C G10 share the same underlying calendar ID — do not 'fix' this; it is intentional.**
 - **DebugSync has two sync buttons: "Sync all calendars" (uses ETag, fast) and "Re-sync all calendars" (force, ignores ETag, full refresh). Use the force button after any parser change.**
 - **Some calendar IDs in src/data/data.js may still return HTTP 404 if the school has rotated them. DebugSync lists all failed URLs with their HTTP status. Refresh data.js when this happens.**
 - **Never transform calendar IDs before use. The "esi.dz_" prefix is part of the ID, not a namespace. Earlier versions stripped it and produced 404s on calendars that were actually published.**
 - **Do not assume base64 and email-form calendar IDs are interchangeable. The embed endpoint accepts both; the ICS endpoint accepts only the email form. Any future code that constructs a Google Calendar URL must call normalizeCalendarId() first (see src/services/sync.js).**
-- **Last updated:** 2026-10-07. Phase 2 (2a–2f): bottom tab bar + page shell (Schedule/Teachers/Sessions/More, `hidden`-kept tabs, GitHub link moved to More → About); user-facing Sync page (year/month/week ranges, INSERT-time filter, `calendars.sync_range`, range-switch ETag bypass, `esi-sync-range`); offline SQLite fallback (`OfflineSchedule` + `WeekView` Dimanche→Jeudi, offline toast, silent first-launch year sync with `esi-first-sync-done`); Teachers + Sessions tabs (`listTeachers`, `queryTeacherWeek`, `querySessionsFiltered`, `queryGroupWeekByCalname`, detail sheet with teacher/group jumps); Help page (5 cards); docs refresh. Offline-sync fixes: store Cours/TD/TP only (parse-time drop + idempotent cleanup DELETE), online-detection regex broadened to e[.\- ]?(Cours|TD|TP) + lone-e shift, LOCATION "+" split + two-letter building-code named rooms with rooms=[] on ambiguous, DebugSync stored-type breakdown panel (Autre prefix panel removed). URL verbatim-ID audit (no mangling found in sync.js/ics.js; encodeURIComponent must NOT wrap pre-encoded IDs — curl-proven 404), raw_location migration rethrow guard, Round 4 curl verification (39/39 IDs 200, data.js unchanged). ICS base64 normalizer (normalizeCalendarId in sync.js, fetch-only; raw URL kept for DB/ETag keys).
+- **Last updated:** 2026-10-07 (evening). Phase 3 (p3a–p3f): Zustand store as single source of truth + singleton `openDb()` (App root only caller) + silent first-launch sync removed (`esi-first-sync-done` gone); wouter routes (`/` `/teachers` `/sessions` `/more` `/more/sync` `/more/help` `/more/about`, AboutPage extracted, route-aware Android back + exit ConfirmDialog); query fixes (dbReady gating + sessionCount re-query everywhere, cal_url/cal_starts indexes, materialized `teachers` table rebuilt per sync + store cache, SQL/row logging on all offline queries, subject TRIM on write + migration); pull-to-refresh semantics (Schedule: iframe-key reload online / DB re-query offline via refreshTick; Teachers/Sessions: filter re-query; Sync: last range; Help/About: none); CASE A/B/C/D matrix via `useAppState()` with db-ready loading spinners and Help copy fix.
