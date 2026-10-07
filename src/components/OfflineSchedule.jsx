@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { FiWifiOff } from "react-icons/fi";
 import WeekView from "./WeekView";
+import SessionDetailModal from "./SessionDetailModal";
 import { getSchoolWeekSunday } from "../utils/week";
 import { calendarIdToIcsUrl } from "../services/sync";
 import { useAppStore } from "../store/appStore";
@@ -22,6 +23,7 @@ function urlsForSelection(list, type) {
 
 const OfflineSchedule = ({ list, type, isDark, onGoSync, refreshTick }) => {
   const [state, setState] = useState({ loading: true, sessions: [], weekSundayMs: null });
+  const [selected, setSelected] = useState(null);
   const dbReady = useAppStore((s) => s.dbReady);
   const sessionCount = useAppStore((s) => s.sessionCount);
   const online = useOnlineStatus();
@@ -100,7 +102,15 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync, refreshTick }) => {
             sessions={state.sessions}
             weekSundayMs={state.weekSundayMs}
             isDark={isDark}
+            onSessionClick={setSelected}
           />
+          {selected && (
+            <SessionDetailModal
+              session={selected}
+              onClose={() => setSelected(null)}
+              isDark={isDark}
+            />
+          )}
         </div>
       ) : (
         <div className={`p-6 text-center ${cardClass}`}>

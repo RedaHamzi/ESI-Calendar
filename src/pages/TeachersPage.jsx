@@ -4,6 +4,7 @@ import { FiUser, FiSearch, FiWifiOff } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
 import WeekView from "../components/WeekView";
+import SessionDetailModal from "../components/SessionDetailModal";
 import PullToRefresh from "../components/PullToRefresh";
 import { getSchoolWeekSunday } from "../utils/week";
 import { onSync } from "../services/syncEvents";
@@ -36,6 +37,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   const [sessions, setSessions] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [detailSession, setDetailSession] = useState(null);
   const { online, hasData, dbReady, showSyncCTA, canQueryDb } = useAppState();
   const cachedTeachers = useAppStore((s) => s.teachers);
   const syncStatus = useAppStore((s) => s.syncStatus);
@@ -108,6 +110,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   useEffect(() => {
     if (focusTeacher && focusTeacher.name) {
       setSelected(focusTeacher.name);
+      setDetailSession(null);
       setWeekOffset(0);
     }
   }, [focusTeacher]);
@@ -251,7 +254,15 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
                     sessions={sessions}
                     weekSundayMs={bounds.startMs}
                     isDark={isDark}
+                    onSessionClick={setDetailSession}
                   />
+                  {detailSession && (
+                    <SessionDetailModal
+                      session={detailSession}
+                      onClose={() => setDetailSession(null)}
+                      isDark={isDark}
+                    />
+                  )}
                 </div>
               ) : (
                 <p className={`p-4 text-sm text-center ${subClass}`}>
@@ -333,6 +344,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
                       type="button"
                       onClick={() => {
                         setSelected(name);
+                        setDetailSession(null);
                         setWeekOffset(0);
                       }}
                       aria-label={name}

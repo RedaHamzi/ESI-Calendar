@@ -49,7 +49,9 @@ function styleFor(sessionType, isDark) {
 
 // sessions: DB rows (starts_at/ends_at in unix seconds).
 // weekSundayMs: Sunday 00:00 local time of the week to render.
-const WeekView = ({ sessions, weekSundayMs, isDark }) => {
+// onSessionClick: optional — when provided, event blocks become tappable
+// buttons (44px min touch area) that report the clicked session.
+const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
   const byDay = useMemo(() => {
     const list = Array.isArray(sessions) ? sessions : [];
     const buckets = [[], [], [], [], []];
@@ -138,11 +140,10 @@ const WeekView = ({ sessions, weekSundayMs, isDark }) => {
                     .map((s) => {
                       const st = styleFor(s.session_type, isDark);
                       const rooms = parseRooms(s.rooms);
-                      return (
-                        <div
-                          key={`${s.uid}|${s.recurrence_id}`}
-                          className={`rounded-md border px-1 py-0.5 mb-0.5 text-[10px] leading-tight ${st.block}`}
-                        >
+                      const label = `${s.subject || "Session"} ${s.session_type || ""}`.trim();
+                      const blockClass = `rounded-md border px-1 py-0.5 mb-0.5 text-[10px] leading-tight ${st.block}`;
+                      const inner = (
+                        <>
                           <div className="font-bold truncate">
                             {s.subject || "(no subject)"}
                           </div>
@@ -157,6 +158,27 @@ const WeekView = ({ sessions, weekSundayMs, isDark }) => {
                           >
                             {s.session_type}
                           </span>
+                        </>
+                      );
+                      if (typeof onSessionClick === "function") {
+                        return (
+                          <button
+                            key={`${s.uid}|${s.recurrence_id}`}
+                            type="button"
+                            onClick={() => onSessionClick(s)}
+                            aria-label={label}
+                            className={`block w-full min-h-[44px] text-left cursor-pointer active:scale-[0.98] transition-transform ${blockClass}`}
+                          >
+                            {inner}
+                          </button>
+                        );
+                      }
+                      return (
+                        <div
+                          key={`${s.uid}|${s.recurrence_id}`}
+                          className={blockClass}
+                        >
+                          {inner}
                         </div>
                       );
                     })}
