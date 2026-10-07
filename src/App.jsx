@@ -1,20 +1,28 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import BottomTabBar from "./components/BottomTabBar";
+import Toast from "./components/Toast";
 import SchedulePage from "./pages/SchedulePage";
 import TeachersPage from "./pages/TeachersPage";
 import SessionsPage from "./pages/SessionsPage";
 import MorePage from "./pages/MorePage";
+import useOnlineStatus from "./hooks/useOnlineStatus";
 import { classes, groups } from "./data/data";
 import { applyStatusBarTheme } from "./utils/capacitor";
 import { loadLastSelection } from "./utils/history";
 
 const DebugSync = lazy(() => import("./pages/DebugSync"));
 
+const FIRST_SYNC_KEY = "esi-first-sync-done";
+
 function App() {
   const [list, setList] = useState(classes[0]);
   const [type, setType] = useState("class");
   const [tab, setTab] = useState("schedule");
+  const [moreView, setMoreView] = useState("menu");
   const [isDark, setIsDark] = useState(true);
+  const [toast, setToast] = useState(null);
+  const online = useOnlineStatus();
+  const prevOnline = useRef(null);
 
   useEffect(() => {
     // Load saved theme preference
@@ -56,6 +64,66 @@ function App() {
     applyStatusBarTheme(isDark);
   }, [isDark]);
 
+  // Offline toast: on first launch while offline, and on online → offline.
+  useEffect(() => {
+    if (prevOnline.current === null) {
+      prevOnline.current = online;
+      if (!online) {
+        setToast({ id: "offline-first", message: "You're offline. Connect to sync." });
+      }
+      return;
+    }
+    if (prevOnline.current && !online) {
+      setToast({ id: `offline-${Date.now()}`, message: "You're offline. Showing cached schedule.", action: "Sync" });
+    }
+    prevOnline.current = online;
+  }, [online]);
+
+  // Silent first-launch background sync (default year range). Never blocks
+  // the UI and never shows user-facing errors.
+  useEffect(() => {
+    let cancelled = false;
+    const maybeFirstSync = async () => {
+      try {
+        if (typeof navigator !== "undefined" && !navigator.onLine) return;
+        if (localStorage.getItem(FIRST_SYNC_KEY)) return;
+        const { openDb, countSessions } = await import("./services/db");
+        const db = await openDb();
+        if (cancelled) return;
+        const total = await countSessions(db);
+        if (total > 0) {
+          try {
+            localStorage.setItem(FIRST_SYNC_KEY, "1");
+          } catch (e) {
+            // storage unavailable — will retry next launch
+          }
+          return;
+        }
+        const { syncAll, getCalendarUrls } = await import("./services/sync");
+        if (cancelled) return;
+        await syncAll(getCalendarUrls(), undefined, { range: "year" });
+        if (!cancelled) {
+          try {
+            localStorage.setItem(FIRST_SYNC_KEY, "1");
+          } catch (e) {
+            // storage unavailable — will retry next launch
+          }
+        }
+      } catch (e) {
+        console.warn("first-launch background sync skipped:", e?.message || e);
+      }
+    };
+    maybeFirstSync();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const goSync = () => {
+    setMoreView("sync");
+    setTab("more");
+  };
+
   const themeClasses = isDark
     ? "min-h-screen-mobile bg-slate-900"
     : "min-h-screen-mobile bg-blue-50";
@@ -81,6 +149,8 @@ function App() {
             setType={setType}
             isDark={isDark}
             setIsDark={setIsDark}
+            isOffline={!online}
+            onGoSync={goSync}
           />
         </div>
         <div className={tab === "teachers" ? "" : "hidden"}>
@@ -90,9 +160,25 @@ function App() {
           <SessionsPage isDark={isDark} setIsDark={setIsDark} />
         </div>
         <div className={tab === "more" ? "" : "hidden"}>
-          <MorePage isDark={isDark} setIsDark={setIsDark} />
+          <MorePage
+            isDark={isDark}
+            setIsDark={setIsDark}
+            view={moreView}
+            setView={setMoreView}
+          />
         </div>
       </div>
+
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          actionLabel={toast.action}
+          onAction={toast.action ? goSync : undefined}
+          onClose={() => setToast(null)}
+          isDark={isDark}
+        />
+      )}
 
       <BottomTabBar active={tab} onChange={setTab} isDark={isDark} />
     </div>

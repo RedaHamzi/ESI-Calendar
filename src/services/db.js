@@ -237,6 +237,40 @@ export async function queryUpcomingByType(db, type, limit) {
   return rowsOf(result);
 }
 
+// Sessions for the given calendar URLs inside [minSec, maxSec] (unix
+// seconds, inclusive). All values parameterized; urls beyond SQLite's
+// variable limit are chunked.
+export async function querySessionsByCalUrls(db, urls, minSec, maxSec) {
+  const list = (Array.isArray(urls) ? urls : []).filter((u) => typeof u === 'string' && u);
+  if (list.length === 0) return [];
+  const out = [];
+  const CHUNK = 400;
+  for (let i = 0; i < list.length; i += CHUNK) {
+    const chunk = list.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => '?').join(', ');
+    const result = await db.query(
+      `SELECT * FROM sessions WHERE cal_url IN (${placeholders}) AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC`,
+      [...chunk, minSec, maxSec],
+    );
+    out.push(...rowsOf(result));
+  }
+  out.sort((a, b) => Number(a.starts_at) - Number(b.starts_at));
+  return out;
+}
+
+// Fallback lookup by stored X-WR-CALNAME. Bounds arrive in ms (call-site
+// convention) and are converted to the seconds used by the DB.
+export async function queryGroupWeekByCalname(db, calname, weekStartMs, weekEndMs) {
+  if (!calname) return [];
+  const minSec = Math.floor(Number(weekStartMs) / 1000);
+  const maxSec = Math.floor(Number(weekEndMs) / 1000);
+  const result = await db.query(
+    'SELECT * FROM sessions WHERE calname = ? AND starts_at >= ? AND starts_at <= ? ORDER BY starts_at ASC',
+    [calname, minSec, maxSec],
+  );
+  return rowsOf(result);
+}
+
 export async function queryAutreSessions(db, limit) {
   const result = await db.query(
     "SELECT raw_summary, calname, starts_at FROM sessions WHERE session_type = 'Autre' ORDER BY starts_at ASC LIMIT ?",

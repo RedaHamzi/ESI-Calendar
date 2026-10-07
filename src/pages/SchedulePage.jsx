@@ -1,10 +1,13 @@
 /* eslint-disable react/prop-types */
+import { Suspense, lazy } from "react";
 import SearchBar from "../components/SearchBar";
 import MiniNavigator from "../components/MiniNavigator";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
 
-const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark }) => {
+const OfflineSchedule = lazy(() => import("../components/OfflineSchedule"));
+
+const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffline, onGoSync }) => {
   return (
     <div>
       <PageHeader
@@ -63,6 +66,34 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark }) => {
           </div>
 
           {/* Calendar Frame with better spacing */}
+          {isOffline ? (
+            <Suspense
+              fallback={
+                <div
+                  className={`rounded-2xl shadow-xl overflow-hidden border p-4 ${
+                    isDark
+                      ? "bg-white border-white/20"
+                      : "bg-white border-purple-200"
+                  }`}
+                >
+                  <p
+                    className={`text-sm text-center ${
+                      isDark ? "text-purple-200" : "text-purple-600"
+                    }`}
+                  >
+                    Loading cached schedule…
+                  </p>
+                </div>
+              }
+            >
+              <OfflineSchedule
+                list={list}
+                type={type}
+                isDark={isDark}
+                onGoSync={onGoSync}
+              />
+            </Suspense>
+          ) : (
           <div
             className={`rounded-2xl shadow-xl overflow-hidden border ${
               isDark ? "bg-white border-white/20" : "bg-white border-purple-200"
@@ -93,6 +124,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark }) => {
               title="Mobile Calendar View"
             ></iframe>
           </div>
+          )}
         </div>
       </main>
     </div>

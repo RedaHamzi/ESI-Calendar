@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useState } from "react";
+import { Suspense, lazy } from "react";
 import {
   FiRefreshCw,
   FiHelpCircle,
@@ -8,8 +8,9 @@ import {
 } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import ThemeToggle from "../components/ThemeToggle";
-import SyncPage from "./SyncPage";
 import HelpPage from "./HelpPage";
+
+const SyncPage = lazy(() => import("./SyncPage"));
 
 const MENU = [
   {
@@ -32,8 +33,8 @@ const MENU = [
   },
 ];
 
-const MorePage = ({ isDark, setIsDark }) => {
-  const [view, setView] = useState("menu");
+const MorePage = ({ isDark, setIsDark, view, setView }) => {
+  const current = view || "menu";
   const goMenu = () => setView("menu");
 
   const cardClass = isDark
@@ -44,28 +45,32 @@ const MorePage = ({ isDark, setIsDark }) => {
   const rowHover = isDark ? "hover:bg-white/10" : "hover:bg-purple-50";
   const chevronClass = isDark ? "text-slate-400" : "text-gray-400";
 
-  if (view === "sync") {
-    return <SyncPage isDark={isDark} onBack={goMenu} />;
+  if (current === "sync") {
+    return (
+      <Suspense fallback={null}>
+        <SyncPage isDark={isDark} onBack={goMenu} />
+      </Suspense>
+    );
   }
-  if (view === "help") {
+  if (current === "help") {
     return <HelpPage isDark={isDark} onBack={goMenu} />;
   }
 
   return (
     <div>
       <PageHeader
-        title={view === "about" ? "About" : "More"}
+        title={current === "about" ? "About" : "More"}
         isDark={isDark}
-        onBack={view === "about" ? goMenu : undefined}
+        onBack={current === "about" ? goMenu : undefined}
         action={
-          view === "menu" ? (
+          current === "menu" ? (
             <ThemeToggle isDark={isDark} setIsDark={setIsDark} />
           ) : undefined
         }
       />
       <main className="content-area content-with-tabs px-4">
         <div className="max-w-md mx-auto space-y-4">
-          {view === "menu" && (
+          {current === "menu" && (
             <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>
               {MENU.map(({ id, label, description, Icon }) => (
                 <button
@@ -96,7 +101,7 @@ const MorePage = ({ isDark, setIsDark }) => {
             </div>
           )}
 
-          {view === "about" && (
+          {current === "about" && (
             <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
