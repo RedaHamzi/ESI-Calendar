@@ -188,6 +188,11 @@ input:focus-visible {
   padding-bottom: 15px;
 }
 
+/* Clearance above the fixed bottom tab bar so content never hides under it */
+.content-with-tabs {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
 @media (max-width: 768px) {
   .content-area {
     padding-top: 20px;

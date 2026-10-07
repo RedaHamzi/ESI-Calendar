@@ -77,7 +77,7 @@ const SearchBar = ({ setList, type, isDark }) => {
   const renderRow = (item, key) => (
     <button
       key={key}
-      className={`w-full px-4 py-3 text-left transition-colors duration-150 border-b last:border-b-0 ${
+      className={`w-full min-h-[44px] px-4 py-3 text-left active:scale-[0.97] transition-colors duration-150 border-b last:border-b-0 ${
         isDark
           ? 'hover:bg-purple-500/20 border-gray-700'
           : 'hover:bg-purple-50 border-gray-200'
@@ -143,7 +143,7 @@ const SearchBar = ({ setList, type, isDark }) => {
             <button
               key={`recent-${item.title}`}
               onClick={() => handleSelect(item)}
-              className={`shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors duration-150 ${chipStyles}`}
+              className={`shrink-0 min-h-[44px] flex items-center px-3 py-1.5 text-sm rounded-full border active:scale-[0.97] transition-colors duration-150 ${chipStyles}`}
             >
               {item.title}
             </button>

@@ -11,7 +11,7 @@ const MiniNavigator = ({ type, setType, setList, isDark }) => {
     <div className="relative">
       <div className={`flex items-center rounded-2xl p-1 border ${containerBg} ${containerBorder}`}>
         <button
-          className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
+          className={`flex-1 min-h-[44px] py-3 px-4 rounded-xl active:scale-[0.97] transition-all duration-200 font-medium text-sm ${
             type === 'class' 
               ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
@@ -23,7 +23,7 @@ const MiniNavigator = ({ type, setType, setList, isDark }) => {
           </span>
         </button>
         <button
-          className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
+          className={`flex-1 min-h-[44px] py-3 px-4 rounded-xl active:scale-[0.97] transition-all duration-200 font-medium text-sm ${
             type === 'group' 
               ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
