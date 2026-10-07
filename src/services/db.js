@@ -324,11 +324,12 @@ export async function querySessionsFiltered(db, { type, subject, minMs, maxMs, l
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
   const capped = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Math.floor(Number(limit)) : 200;
-  const result = await db.query(
-    `SELECT * FROM sessions ${where} ORDER BY starts_at ASC LIMIT ${capped}`,
-    values,
-  );
-  return rowsOf(result);
+  const sql = `SELECT * FROM sessions ${where} ORDER BY starts_at ASC LIMIT ${capped}`;
+  console.log(`[db] querySessionsFiltered sql=${sql} params=${JSON.stringify(values)}`);
+  const result = await db.query(sql, values);
+  const rows = rowsOf(result);
+  console.log(`[db] querySessionsFiltered rows=${rows.length}`);
+  return rows;
 }
 
 export async function queryAutreSessions(db, limit) {
