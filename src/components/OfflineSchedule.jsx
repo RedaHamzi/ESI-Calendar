@@ -87,7 +87,7 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync, refreshTick }) => {
   return (
     <div
       className={`rounded-2xl shadow-xl overflow-hidden border ${
-        isDark ? "bg-white border-white/20" : "bg-white border-purple-200"
+        isDark ? "bg-slate-900 border-white/20" : "bg-white border-purple-200"
       }`}
     >
       {state.loading ? (
