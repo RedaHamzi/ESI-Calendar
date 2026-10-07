@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { classes, groups } from '../data/data';
-import { openDb, countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline } from '../services/db';
+import { countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline } from '../services/db';
 import { syncAll, getCalendarUrls, calendarIdToIcsUrl } from '../services/sync';
+import { useAppStore } from '../store/appStore';
 
 function formatTimestamp(ms) {
   if (!ms) return 'never';
@@ -79,7 +80,11 @@ export default function DebugSync() {
   const labelFor = (url) => titleByUrl.get(url) || url;
 
   const loadStats = async () => {
-    const db = await openDb();
+    const db = useAppStore.getState().db;
+    if (!db) {
+      setError('Database is not ready yet.');
+      return;
+    }
     const total = await countSessions(db);
     const byType = await countByType(db);
     const calResult = await db.query('SELECT COUNT(*) AS n, MAX(last_synced) AS lastSynced FROM calendars');
@@ -162,7 +167,11 @@ export default function DebugSync() {
     setError(null);
     setTeacherResults(null);
     try {
-      const db = await openDb();
+      const db = useAppStore.getState().db;
+      if (!db) {
+        setError('Database is not ready yet.');
+        return;
+      }
       const rows = await queryUpcomingByTeacher(db, teacher.trim(), 5);
       setTeacherResults(rows);
     } catch (err) {

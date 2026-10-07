@@ -52,39 +52,52 @@ const SESSION_COLUMNS = [
 const INSERT_SQL = `INSERT OR REPLACE INTO sessions (${SESSION_COLUMNS.join(', ')}) VALUES (${SESSION_COLUMNS.map(() => '?').join(', ')})`;
 
 let sqlite = null;
-let dbInstance = null;
 
 function getSQLite() {
   if (!sqlite) sqlite = new SQLiteConnection(CapacitorSQLite);
   return sqlite;
 }
 
-export async function openDb() {
-  if (dbInstance) return dbInstance;
-  const conn = getSQLite();
-  if (Capacitor.getPlatform() === 'web') {
-    await conn.initWebStore();
+// Singleton promise: the plugin's createConnection is not idempotent, so
+// concurrent openDb() calls produce "Connection esi_calendar already
+// exists". Exactly ONE caller (App root) resolves this; everyone else
+// reads the connection from the Zustand store.
+let _dbPromise = null;
+
+export function openDb() {
+  if (!_dbPromise) {
+    _dbPromise = (async () => {
+      const conn = getSQLite();
+      if (Capacitor.getPlatform() === 'web') {
+        await conn.initWebStore();
+      }
+      const known = await conn.isConnection(DB_NAME, false);
+      let db;
+      if (known && known.result) {
+        db = await conn.retrieveConnection(DB_NAME, false);
+      } else {
+        db = await conn.createConnection(DB_NAME, false, 'no-encryption', 1, false);
+      }
+      await db.open();
+      await ensureSchema(db);
+      for (const ddl of [
+        'ALTER TABLE sessions ADD COLUMN raw_location TEXT',
+        'ALTER TABLE calendars ADD COLUMN sync_range TEXT',
+      ]) {
+        try {
+          await db.execute(ddl);
+        } catch (e) {
+          const msg = String(e?.message ?? e);
+          if (!/duplicate column name/i.test(msg)) throw e;
+        }
+      }
+      return db;
+    })().catch((e) => {
+      _dbPromise = null; // allow retry on failure
+      throw e;
+    });
   }
-  const known = await conn.isConnection(DB_NAME, false);
-  if (known && known.result) {
-    dbInstance = await conn.retrieveConnection(DB_NAME, false);
-  } else {
-    dbInstance = await conn.createConnection(DB_NAME, false, 'no-encryption', 1, false);
-  }
-  await dbInstance.open();
-  await ensureSchema(dbInstance);
-  for (const ddl of [
-    'ALTER TABLE sessions ADD COLUMN raw_location TEXT',
-    'ALTER TABLE calendars ADD COLUMN sync_range TEXT',
-  ]) {
-    try {
-      await dbInstance.execute(ddl);
-    } catch (e) {
-      const msg = String(e?.message ?? e);
-      if (!/duplicate column name/i.test(msg)) throw e;
-    }
-  }
-  return dbInstance;
+  return _dbPromise;
 }
 
 export async function ensureSchema(db) {

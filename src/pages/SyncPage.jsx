@@ -5,12 +5,12 @@ import PageHeader from "../components/PageHeader";
 import PullToRefresh from "../components/PullToRefresh";
 import { classes, groups } from "../data/data";
 import {
-  openDb,
   countSessions,
   countSessionsInRange,
   getSyncOverview,
   getSyncRangeBounds,
 } from "../services/db";
+import { useAppStore } from "../store/appStore";
 import {
   syncAll,
   getCalendarUrls,
@@ -92,11 +92,17 @@ const SyncPage = ({ isDark, onBack }) => {
     return map;
   }, []);
 
+  const dbReady = useAppStore((s) => s.dbReady);
+
   const labelFor = (url) => titleByUrl.get(url) || url;
 
   const loadStats = async () => {
     try {
-      const db = await openDb();
+      const db = useAppStore.getState().db;
+      if (!db) {
+        setError("Database is not ready yet. Reopen the app.");
+        return;
+      }
       const [total, monthBounds, weekBounds] = [
         await countSessions(db),
         getSyncRangeBounds("month"),
@@ -109,13 +115,14 @@ const SyncPage = ({ isDark, onBack }) => {
       setCounts({ total, month, week });
       setOverview({ ...(await getSyncOverview(db)), total });
     } catch (e) {
+      console.error(`SyncPage/loadStats: ${e && e.message ? e.message : e}`);
       setError("Couldn't read the local database yet. Try reopening the app.");
     }
   };
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (dbReady) loadStats();
+  }, [dbReady]);
 
   const runSync = async (nextRange) => {
     if (syncing) return;

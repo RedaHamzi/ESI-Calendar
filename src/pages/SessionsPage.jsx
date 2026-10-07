@@ -10,6 +10,7 @@ import {
 } from "../utils/week";
 import { onSync, isSyncing } from "../services/syncEvents";
 import PullToRefresh from "../components/PullToRefresh";
+import { useAppStore } from "../store/appStore";
 
 const TYPE_OPTIONS = ["All", "Cours", "TD", "TP"];
 const RANGE_OPTIONS = [
@@ -119,6 +120,7 @@ const SessionsPage = ({
   const [loadError, setLoadError] = useState(null);
   const [syncActive, setSyncActive] = useState(() => isSyncing());
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const dbReady = useAppStore((s) => s.dbReady);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -146,10 +148,17 @@ const SessionsPage = ({
       setSessions(null);
       setLoadError(null);
       try {
-        const { openDb, querySessionsFiltered } = await import(
+        const db = useAppStore.getState().db;
+        if (!db) {
+          if (!cancelled) {
+            setLoadError("Database is not ready yet.");
+            setSessions([]);
+          }
+          return;
+        }
+        const { querySessionsFiltered } = await import(
           "../services/db"
         );
-        const db = await openDb();
         if (cancelled) return;
         const rows = await querySessionsFiltered(db, {
           type: sessionType,
@@ -160,18 +169,20 @@ const SessionsPage = ({
         });
         if (!cancelled) setSessions(rows);
       } catch (e) {
+        console.error(`SessionsPage/load: ${e && e.message ? e.message : e}`);
         if (!cancelled) {
-          setLoadError(e.message || String(e));
+          setLoadError((e && e.message) || String(e));
           setSessions([]);
         }
       }
     };
+    if (!dbReady) return () => { cancelled = true; };
     const timer = setTimeout(load, subject ? 250 : 0);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [sessionType, subject, bounds, refreshSeq]);
+  }, [sessionType, subject, bounds, refreshSeq, dbReady]);
 
   // Same race as Teachers: the mount-time query runs while the silent
   // first-launch sync is still filling the DB. Re-run on sync events.

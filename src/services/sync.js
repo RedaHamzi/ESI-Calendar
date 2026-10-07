@@ -1,7 +1,8 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
-import { openDb, getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds } from './db';
+import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds } from './db';
 import { emitSync } from './syncEvents';
+import { useAppStore } from '../store/appStore';
 
 export const FETCH_DELAY_MS = 300;
 export const DEFAULT_SYNC_RANGE = 'year';
@@ -75,7 +76,13 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function syncOne(url, options) {
   const force = !!(options && options.force);
   const range = (options && options.range) || DEFAULT_SYNC_RANGE;
-  const db = await openDb();
+  // DB comes from the Zustand store (App root is the only openDb() caller).
+  const db = useAppStore.getState().db;
+  if (!db) {
+    const msg = 'syncOne: database not ready (db not opened yet)';
+    console.error(`syncOne: ${msg} for ${url}`);
+    return { url, status: 'error', error: msg };
+  }
   const meta = force ? null : await getCalendarMeta(db, url);
   // A range switch must refetch even when the ETag is fresh, otherwise the
   // stored rows would keep the previous range's data under the new label.
@@ -159,6 +166,10 @@ export async function syncAll(urls, onProgress, options) {
   const total = list.length;
   const summary = { total, updated: 0, unchanged: 0, failed: 0, failures: [] };
   const range = (options && options.range) || DEFAULT_SYNC_RANGE;
+  const store = useAppStore.getState();
+  store.setSyncStatus("running");
+  store.setSyncProgress({ done: 0, total, currentLabel: "" });
+  store.setSyncError(null);
   emitSync({ type: 'start', range });
 
   try {
@@ -168,8 +179,8 @@ export async function syncAll(urls, onProgress, options) {
       try {
         result = await syncOne(url, options);
       } catch (err) {
-        console.error(`syncAll: unexpected error for ${url}: ${err.message}`);
-        result = { url, status: 'error', error: err.message };
+        console.error(`syncAll: unexpected error for ${url}: ${err && err.message ? err.message : err}`);
+        result = { url, status: 'error', error: (err && err.message) || String(err) };
       }
 
       if (result.status === 'updated') {
@@ -181,6 +192,7 @@ export async function syncAll(urls, onProgress, options) {
         summary.failures.push({ url, error: result.error || 'unknown' });
       }
 
+      useAppStore.getState().setSyncProgress({ done: i + 1, total, currentLabel: url });
       emitSync({ type: 'progress', done: i + 1, total, url });
 
       if (typeof onProgress === 'function') {
@@ -197,10 +209,25 @@ export async function syncAll(urls, onProgress, options) {
       }
     }
   } catch (err) {
-    emitSync({ type: 'error', message: err?.message || String(err) });
+    const msg = (err && err.message) || String(err);
+    console.error(`syncAll: fatal: ${msg}`);
+    useAppStore.getState().setSyncError(msg);
+    useAppStore.getState().setSyncStatus("error");
+    emitSync({ type: 'error', message: msg });
     throw err;
   }
 
+  try {
+    await useAppStore.getState().refreshCounts();
+  } catch (e) {
+    console.error(`syncAll/refreshCounts: ${e && e.message ? e.message : e}`);
+  }
+  if (summary.failed > 0 && summary.updated === 0 && summary.unchanged === 0) {
+    useAppStore.getState().setSyncError(`${summary.failed} calendar(s) failed`);
+    useAppStore.getState().setSyncStatus("error");
+  } else {
+    useAppStore.getState().setSyncStatus("done");
+  }
   emitSync({ type: 'done', updated: summary.updated, failed: summary.failed });
   return summary;
 }

@@ -7,6 +7,7 @@ import WeekView from "../components/WeekView";
 import PullToRefresh from "../components/PullToRefresh";
 import { getSchoolWeekSunday } from "../utils/week";
 import { onSync, isSyncing } from "../services/syncEvents";
+import { useAppStore } from "../store/appStore";
 
 const WEEK_OPTIONS = [
   { id: 0, label: "This week" },
@@ -35,6 +36,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
   const [loadError, setLoadError] = useState(null);
   const [syncActive, setSyncActive] = useState(() => isSyncing());
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const dbReady = useAppStore((s) => s.dbReady);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -51,19 +53,25 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
     let cancelled = false;
     const load = async () => {
       try {
-        const { openDb, listTeachers } = await import("../services/db");
-        const db = await openDb();
+        const db = useAppStore.getState().db;
+        if (!db) {
+          if (!cancelled) setLoadError("Database is not ready yet.");
+          return;
+        }
+        const { listTeachers } = await import("../services/db");
         if (cancelled) return;
+        setLoadError(null);
         setTeachers(await listTeachers(db));
       } catch (e) {
-        if (!cancelled) setLoadError(e.message || String(e));
+        console.error(`TeachersPage/loadTeachers: ${e && e.message ? e.message : e}`);
+        if (!cancelled) setLoadError((e && e.message) || String(e));
       }
     };
-    load();
+    if (dbReady) load();
     return () => {
       cancelled = true;
     };
-  }, [refreshSeq]);
+  }, [refreshSeq, dbReady]);
 
   // Re-query when a sync lands: the mount-time query races the silent
   // first-launch sync, so without this the list stays stale-empty.
@@ -104,20 +112,25 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
       setSessions(null);
       try {
         console.log(`[teachers] detail teacher=${JSON.stringify(selected)} weekOffset=${weekOffset}`);
-        const { openDb, queryTeacherWeek } = await import("../services/db");
-        const db = await openDb();
+        const db = useAppStore.getState().db;
+        if (!db) {
+          if (!cancelled) setSessions([]);
+          return;
+        }
+        const { queryTeacherWeek } = await import("../services/db");
         if (cancelled) return;
         const { startMs, endMs } = weekBounds(weekOffset);
         setSessions(await queryTeacherWeek(db, selected, startMs, endMs));
       } catch (e) {
+        console.error(`TeachersPage/loadTeacherWeek: ${e && e.message ? e.message : e}`);
         if (!cancelled) setSessions([]);
       }
     };
-    load();
+    if (dbReady) load();
     return () => {
       cancelled = true;
     };
-  }, [selected, weekOffset, refreshSeq]);
+  }, [selected, weekOffset, refreshSeq, dbReady]);
 
   const filtered = useMemo(() => {
     if (!Array.isArray(teachers)) return [];

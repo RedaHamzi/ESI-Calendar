@@ -10,9 +10,10 @@ import { classes, groups } from "./data/data";
 import { applyStatusBarTheme } from "./utils/capacitor";
 import { loadLastSelection } from "./utils/history";
 
+import { useAppStore } from "./store/appStore";
+
 const DebugSync = lazy(() => import("./pages/DebugSync"));
 
-const FIRST_SYNC_KEY = "esi-first-sync-done";
 const SCHEDULE_MODE_KEY = "esi-schedule-mode";
 
 function App() {
@@ -116,41 +117,26 @@ function App() {
     }
   };
 
-  // Silent first-launch background sync (default year range). Never blocks
-  // the UI and never shows user-facing errors.
+  // Single DB open for the whole app. App root is the ONLY openDb()
+  // caller — every other module reads the connection from the store.
+  // No silent sync: sync happens only when the user taps a Sync button.
   useEffect(() => {
     let cancelled = false;
-    const maybeFirstSync = async () => {
+    const initDb = async () => {
       try {
-        if (typeof navigator !== "undefined" && !navigator.onLine) return;
-        if (localStorage.getItem(FIRST_SYNC_KEY)) return;
-        const { openDb, countSessions } = await import("./services/db");
+        const { openDb } = await import("./services/db");
         const db = await openDb();
         if (cancelled) return;
-        const total = await countSessions(db);
-        if (total > 0) {
-          try {
-            localStorage.setItem(FIRST_SYNC_KEY, "1");
-          } catch (e) {
-            // storage unavailable — will retry next launch
-          }
-          return;
-        }
-        const { syncAll, getCalendarUrls } = await import("./services/sync");
-        if (cancelled) return;
-        await syncAll(getCalendarUrls(), undefined, { range: "year" });
-        if (!cancelled) {
-          try {
-            localStorage.setItem(FIRST_SYNC_KEY, "1");
-          } catch (e) {
-            // storage unavailable — will retry next launch
-          }
-        }
+        useAppStore.getState().setDb(db);
+        await useAppStore.getState().refreshCounts();
       } catch (e) {
-        console.warn("first-launch background sync skipped:", e?.message || e);
+        if (!cancelled) {
+          console.error(`App/initDb: ${e && e.message ? e.message : e}`);
+          useAppStore.getState().setDbError(e && e.message ? e.message : String(e));
+        }
       }
     };
-    maybeFirstSync();
+    initDb();
     return () => {
       cancelled = true;
     };

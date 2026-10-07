@@ -4,6 +4,7 @@ import { FiWifiOff } from "react-icons/fi";
 import WeekView from "./WeekView";
 import { getSchoolWeekSunday } from "../utils/week";
 import { calendarIdToIcsUrl } from "../services/sync";
+import { useAppStore } from "../store/appStore";
 
 function urlsForSelection(list, type) {
   if (!list) return [];
@@ -20,6 +21,8 @@ function urlsForSelection(list, type) {
 
 const OfflineSchedule = ({ list, type, isDark, onGoSync }) => {
   const [state, setState] = useState({ loading: true, sessions: [], weekSundayMs: null });
+  const dbReady = useAppStore((s) => s.dbReady);
+  const sessionCount = useAppStore((s) => s.sessionCount);
 
   const cardClass = isDark
     ? "bg-white/10 border-white/20"
@@ -42,9 +45,13 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync }) => {
         59,
       ).getTime();
       try {
-        const { openDb, querySessionsByCalUrls, queryGroupWeekByCalname } =
+        const db = useAppStore.getState().db;
+        if (!db) {
+          if (!cancelled) setState({ loading: false, sessions: [], weekSundayMs });
+          return;
+        }
+        const { querySessionsByCalUrls, queryGroupWeekByCalname } =
           await import("../services/db");
-        const db = await openDb();
         if (cancelled) return;
         const urls = urlsForSelection(list, type);
         const minSec = Math.floor(weekSundayMs / 1000);
@@ -60,16 +67,18 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync }) => {
         }
         if (!cancelled) setState({ loading: false, sessions, weekSundayMs });
       } catch (e) {
+        console.error(`schedule/offline: ${e && e.message ? e.message : e}`);
         if (!cancelled) {
           setState({ loading: false, sessions: [], weekSundayMs });
         }
       }
     };
+    if (!dbReady) return () => { cancelled = true; };
     load();
     return () => {
       cancelled = true;
     };
-  }, [list, type]);
+  }, [list, type, dbReady, sessionCount]);
 
   return (
     <div
