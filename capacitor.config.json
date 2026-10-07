@@ -2,6 +2,7 @@
   "appId": "com.esi.calendar",
   "appName": "ESICalendar",
   "webDir": "dist",
+  "backgroundColor": "#0f172a",
   "server": {
     "androidScheme": "https",
     "cleartext": true
@@ -26,6 +27,7 @@
   },
   "android": {
     "allowMixedContent": true,
+    "backgroundColor": "#0f172a",
     "webContentsDebuggingEnabled": true
   }
 }
