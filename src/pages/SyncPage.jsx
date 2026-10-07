@@ -159,7 +159,7 @@ const SyncPage = ({ isDark, onBack }) => {
   return (
     <div>
       <PageHeader title="Sync" isDark={isDark} onBack={onBack} />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           <div className={`rounded-2xl p-4 border ${cardClass}`}>
             <p className={`text-sm font-semibold ${textClass}`}>

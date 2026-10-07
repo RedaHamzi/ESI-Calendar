@@ -15,7 +15,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
         isDark={isDark}
         action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto">
           {/* Search and Navigation */}
           <div className="space-y-4 mb-6">

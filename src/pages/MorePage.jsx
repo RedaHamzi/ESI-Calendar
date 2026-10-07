@@ -68,7 +68,7 @@ const MorePage = ({ isDark, setIsDark, view, setView }) => {
           ) : undefined
         }
       />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           {current === "menu" && (
             <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>

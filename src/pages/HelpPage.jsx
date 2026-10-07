@@ -68,7 +68,7 @@ const HelpPage = ({ isDark, onBack }) => {
   return (
     <div>
       <PageHeader title="Help" isDark={isDark} onBack={onBack} />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           {SECTIONS.map(({ Icon, title, body, steps, link }) => (
             <section

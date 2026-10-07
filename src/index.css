@@ -188,16 +188,20 @@ input:focus-visible {
   padding-bottom: 15px;
 }
 
-/* Clearance above the fixed bottom tab bar so content never hides under it */
-.content-with-tabs {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-}
-
 @media (max-width: 768px) {
   .content-area {
     padding-top: 20px;
     padding-bottom: 20px;
   }
+}
+
+/* Bottom clearance so page content never hides under the fixed tab bar.
+   MUST stay after the media queries above: same specificity as
+   .content-area, so source order decides which padding-bottom wins.
+   60px = measured BottomTabBar button height (min-h-[60px] governs:
+   20px icon + 2px gap + ~14px label + 16px vertical padding ≈ 52px). */
+.page-content {
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Header specific spacing */

@@ -276,7 +276,7 @@ const SessionsPage = ({
         isDark={isDark}
         action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           <div className={`flex items-center rounded-2xl p-1 border ${cardClass}`}>
             {TYPE_OPTIONS.map((t) => (

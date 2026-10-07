@@ -109,7 +109,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
           isDark={isDark}
           onBack={() => setSelected(null)}
         />
-        <main className="content-area content-with-tabs px-4">
+        <main className="content-area page-content px-4">
           <div className="max-w-md mx-auto space-y-4">
             <div
               className={`flex items-center rounded-2xl p-1 border ${cardClass}`}
@@ -171,7 +171,7 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
         isDark={isDark}
         action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
-      <main className="content-area content-with-tabs px-4">
+      <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2">
