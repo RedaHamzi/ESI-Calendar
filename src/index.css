@@ -10,9 +10,16 @@
   padding-bottom: 20px;
 }
 
-/* Safe area top only */
+/* Safe area top only: env() covers the iOS notch/Dynamic Island;
+   fixed defaults (>=24px) cover Android status bar and web. */
 .safe-area-top {
-  padding-top: 20px;
+  padding-top: max(24px, env(safe-area-inset-top, 0px));
+}
+
+/* Top padding for the app root container on native devices.
+   Applied once at the root so the header never sits under the status bar. */
+.status-bar-padding {
+  padding-top: max(24px, env(safe-area-inset-top, 0px));
 }
 
 /* Safe area bottom only */
@@ -28,7 +35,7 @@
   }
   
   .safe-area-top {
-    padding-top: 25px;
+    padding-top: max(25px, env(safe-area-inset-top, 0px));
   }
   
   .safe-area-bottom {
@@ -44,7 +51,7 @@
   }
   
   .safe-area-top {
-    padding-top: 30px;
+    padding-top: max(30px, env(safe-area-inset-top, 0px));
   }
   
   .safe-area-bottom {

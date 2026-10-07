@@ -1,10 +1,12 @@
 import { classes, groups } from "../data/data";
 import { useEffect, useRef, useState } from "react";
-import { BsSearch, BsChevronDown, BsX } from "react-icons/bs";
+import { FiSearch, FiChevronDown, FiX } from "react-icons/fi";
+import { getRecent, pushRecent, clearRecent } from "../utils/history";
 
 const SearchBar = ({ setList, type, isDark }) => {
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [recent, setRecent] = useState([]);
   const dropdownRef = useRef();
 
   const selectedList = (type == "class") ? classes : groups;
@@ -12,6 +14,7 @@ const SearchBar = ({ setList, type, isDark }) => {
   useEffect(() => {
     setInputValue("");
     setIsOpen(false);
+    setRecent(getRecent(type));
   }, [type]);
 
   const filteredItems = selectedList.filter(item =>
@@ -22,6 +25,11 @@ const SearchBar = ({ setList, type, isDark }) => {
     setInputValue(item.title);
     setIsOpen(false);
     setList(item);
+    setRecent(pushRecent(type, item));
+  };
+
+  const handleClearRecent = () => {
+    setRecent(clearRecent(type));
   };
 
   const handleClear = () => {
@@ -44,13 +52,40 @@ const SearchBar = ({ setList, type, isDark }) => {
   const dropdownBorder = isDark ? "border-white/20" : "border-purple-200";
   const iconColor = isDark ? "text-purple-400" : "text-purple-500";
   const clearButtonColor = isDark ? "text-purple-300 hover:text-white" : "text-purple-500 hover:text-purple-700";
+  const recentHeaderColor = isDark ? "text-gray-400" : "text-gray-500";
+  const dividerColor = isDark ? "border-gray-700" : "border-gray-200";
+
+  const renderRow = (item, key) => (
+    <button
+      key={key}
+      className={`w-full px-4 py-3 text-left transition-colors duration-150 border-b last:border-b-0 ${
+        isDark
+          ? 'hover:bg-purple-500/20 border-gray-700'
+          : 'hover:bg-purple-50 border-gray-200'
+      }`}
+      onClick={() => handleSelect(item)}
+    >
+      <div className="flex items-center">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+          isDark ? 'bg-indigo-600' : 'bg-indigo-500'
+        }`}>
+          <span className="text-white text-xs font-bold">
+            {type === 'class' ? 'C' : 'G'}
+          </span>
+        </div>
+        <span className="font-medium text-gray-800">
+          {item.title}
+        </span>
+      </div>
+    </button>
+  );
 
   return (
     <div className="relative">
       {/* Search Input */}
       <div className="relative">
         <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-          <BsSearch className={`${iconColor} text-lg`} />
+          <FiSearch size={18} className={`${iconColor}`} />
         </div>
         <input
           className={`w-full ${inputBg} ${inputText} ${inputPlaceholder} pl-12 pr-12 py-4 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-base ${inputBorder}`}
@@ -61,7 +96,7 @@ const SearchBar = ({ setList, type, isDark }) => {
             setInputValue(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => { setRecent(getRecent(type)); setIsOpen(true); }}
         />
         
         {/* Clear Button - Shows only when there's text */}
@@ -71,13 +106,13 @@ const SearchBar = ({ setList, type, isDark }) => {
             className={`absolute right-10 top-1/2 transform -translate-y-1/2 p-1 rounded-full transition-all duration-200 hover:bg-white/20 ${clearButtonColor}`}
             aria-label="Clear search"
           >
-            <BsX className="text-xl" />
+            <FiX size={18} />
           </button>
         )}
         
         {/* Dropdown Chevron */}
         <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-          <BsChevronDown className={`${iconColor} transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <FiChevronDown size={16} className={`${iconColor} transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
@@ -91,32 +126,24 @@ const SearchBar = ({ setList, type, isDark }) => {
               </div>
             ) : (
               <div className="py-2">
-                {filteredItems.map((item, index) => (
-                  <button
-                    key={item.title}
-                    className={`w-full px-4 py-3 text-left transition-colors duration-150 border-b last:border-b-0 ${
-                      isDark 
-                        ? 'hover:bg-purple-500/20 border-gray-700' 
-                        : 'hover:bg-purple-50 border-gray-200'
-                    }`}
-                    onClick={() => handleSelect(item)}
-                  >
-                    <div className="flex items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                        isDark 
-                          ? 'bg-gradient-to-r from-purple-500 to-blue-500' 
-                          : 'bg-gradient-to-r from-purple-400 to-blue-400'
-                      }`}>
-                        <span className="text-white text-xs font-bold">
-                          {type === 'class' ? 'C' : 'G'}
-                        </span>
-                      </div>
-                      <span className="font-medium text-gray-800">
-                        {item.title}
+                {inputValue === "" && recent.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between px-4 pt-1 pb-2">
+                      <span className={`text-xs uppercase tracking-wider ${recentHeaderColor}`}>
+                        Recent
                       </span>
+                      <button
+                        onClick={handleClearRecent}
+                        className={`text-xs transition-colors duration-150 ${clearButtonColor}`}
+                      >
+                        Clear
+                      </button>
                     </div>
-                  </button>
-                ))}
+                    {recent.map((item) => renderRow(item, `recent-${item.title}`))}
+                    <div className={`mx-4 my-2 border-t ${dividerColor}`} />
+                  </>
+                )}
+                {filteredItems.map((item) => renderRow(item, item.title))}
               </div>
             )}
           </div>

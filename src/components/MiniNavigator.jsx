@@ -1,4 +1,5 @@
 import { classes, groups } from "../data/data";
+import { FiBookOpen, FiUsers } from "react-icons/fi";
 
 const MiniNavigator = ({ type, setType, setList, isDark }) => {
   const containerBg = isDark ? "bg-white/10 backdrop-blur-lg" : "bg-white/80 backdrop-blur-lg";
@@ -11,22 +12,26 @@ const MiniNavigator = ({ type, setType, setList, isDark }) => {
         <button
           className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
             type === 'class' 
-              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25' 
+              ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
           }`}
           onClick={() => { setType("class"); setList(classes[0]); }}
         >
-          📚 Classes
+          <span className="inline-flex items-center justify-center gap-2">
+            <FiBookOpen size={16} /> Classes
+          </span>
         </button>
         <button
           className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 font-medium text-sm ${
             type === 'group' 
-              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25' 
+              ? `${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} text-white` 
               : inactiveText
           }`}
           onClick={() => { setType("group"); setList(groups[0]); }}
         >
-          👥 Groups
+          <span className="inline-flex items-center justify-center gap-2">
+            <FiUsers size={16} /> Groups
+          </span>
         </button>
       </div>
     </div>

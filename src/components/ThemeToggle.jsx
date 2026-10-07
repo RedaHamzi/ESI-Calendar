@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BsSun, BsMoon } from "react-icons/bs";
+import { FiSun, FiMoon } from "react-icons/fi";
 
 const ThemeToggle = ({ isDark, setIsDark }) => {
   const [mounted, setMounted] = useState(false);
@@ -22,9 +22,7 @@ const ThemeToggle = ({ isDark, setIsDark }) => {
     <button 
       onClick={() => setIsDark(!isDark)}
       className={`relative w-12 h-6 rounded-full p-1 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-        isDark 
-          ? 'bg-gradient-to-r from-purple-500 to-blue-500' 
-          : 'bg-gradient-to-r from-yellow-400 to-orange-400'
+        isDark ? 'bg-indigo-600' : 'bg-orange-400'
       }`}
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
     >
@@ -32,9 +30,9 @@ const ThemeToggle = ({ isDark, setIsDark }) => {
         isDark ? 'translate-x-6' : 'translate-x-0'
       }`}>
         {isDark ? (
-          <BsMoon className="text-purple-600 text-xs" />
+          <FiMoon size={12} className="text-purple-600" />
         ) : (
-          <BsSun className="text-orange-500 text-xs" />
+          <FiSun size={12} className="text-orange-500" />
         )}
       </div>
       

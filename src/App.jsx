@@ -3,7 +3,7 @@ import SearchBar from "./components/SearchBar";
 import MiniNavigator from "./components/MiniNavigator";
 import ThemeToggle from "./components/ThemeToggle";
 import { classes } from "./data/data";
-import { isRunningInCapacitor } from "./utils/capacitor";
+import { isRunningInCapacitor, applyStatusBarTheme } from "./utils/capacitor";
 
 function App() {
   const [list, setList] = useState(classes[0]);
@@ -45,19 +45,21 @@ function App() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    applyStatusBarTheme(isDark);
   }, [isDark]);
 
   const themeClasses = isDark
-    ? "min-h-screen-mobile bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
-    : "min-h-screen-mobile bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-100";
+    ? "min-h-screen-mobile bg-slate-900"
+    : "min-h-screen-mobile bg-blue-50";
 
   const headerTextColor = isDark ? "text-white" : "text-gray-900";
   const subheaderTextColor = isDark ? "text-purple-200" : "text-purple-600";
 
   return (
-    <div className={`${themeClasses} overflow-hidden`}>
+    <div className={`${themeClasses} overflow-hidden status-bar-padding`}>
       {/* Header with proper safe area */}
-      <header className="header-spacing safe-area-top px-4">
+      <header className="header-spacing px-4">
         <div className="max-w-md mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -124,9 +126,7 @@ function App() {
               </div>
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center ml-3 ${
-                  isDark
-                    ? "bg-gradient-to-r from-purple-500 to-blue-500"
-                    : "bg-gradient-to-r from-purple-400 to-blue-400"
+                  isDark ? "bg-indigo-600" : "bg-indigo-500"
                 }`}
               >
                 <span className="text-white font-bold text-sm">
