@@ -150,3 +150,33 @@ overlays — so there was nothing to replace and no section entries were added.
 `classes` (rooms) untouched. Note: the new list rotates two 2CP IDs relative
 to the old file (`esi.dz_43c7…` G06→G05, `esi.dz_ca9m…` B G07→A G04); applied
 literally as provided.
+
+## Round 3: refreshed 2CP/1CS/2SL/2SQ/2ST/2SD group IDs
+
+- Updated 0 entries with the user-provided ICS IDs (all 29 group first-`src`
+  IDs from Round 2 already match the fresh list byte-for-byte, verified by
+  script — no replacement needed)
+- Added: 2CP A, 2CP B, 2CP C, 1CS A, 1CS B, 1CS C, 2SL A, 2SQ A, 2ST A,
+  2SD A (section entries from §3a, single-element `src[]`, inserted in cohort
+  order directly before each section's first group; each ID verified to be the
+  same calendar as the existing base64 section overlay, only in
+  `esi.dz_…%40…` form). Not added (already present): 1CS C G011, 1CS C G012,
+  2ST A G03
+- Preserved per user: 2CP C G09, 2CP C G10 (unchanged)
+- Skipped per user: all 1CP entries (not in the list)
+- `classes` (rooms) untouched; no overlay second-`src` touched; no reorder
+
+## Round 4: curl-verified 2CP/1CS/2SL/2SQ/2ST/2SD group IDs (no data.js change needed)
+
+- Verified 39 URLs via curl: 39 returned 200, 0 returned 404
+- Updated 0 entries in src/data/data.js (all 39 verified IDs were already
+  byte-for-byte in the correct positions from Rounds 2+3 — first `src[]`
+  element for groups, single `src[]` element for the 10 section entries;
+  confirmed by script, 39/39 match, 0 missing, 0 mismatched)
+- Added: none (all target entries already exist)
+- Re-curled the IDs as stored in data.js: 39/39 still 200
+- Still failing, need a fresh ID from the school:
+    * A5, A7, MC2 (rooms, not covered by this task)
+    * (no group URL from this round still 404s)
+- Preserved per user: 2CP C G09, 2CP C G10 (unchanged)
+- Skipped per user: all 1CP entries (untouched), all `classes` (rooms) entries

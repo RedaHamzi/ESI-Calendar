@@ -335,6 +335,12 @@ export const groups = [
     ],
   },
   {
+    title: "2CP A",
+    src: [
+      "esi.dz_1ak7f1i5ck5stp9ffrqhacksi4%40group.calendar.google.com",
+    ],
+  },
+  {
     title: "2CP A G01",
     src: [
       "esi.dz_vho314q04umhpgk0a1mlmd4lq8%40group.calendar.google.com",
@@ -359,6 +365,12 @@ export const groups = [
     title: "2CP A G04",
     src: [
       "esi.dz_ca9mpv1ke2295rlt7divndp7r0%40group.calendar.google.com",
+    ],
+  },
+  {
+    title: "2CP B",
+    src: [
+      "esi.dz_amhtsd61q76v05s98b61cooo4g%40group.calendar.google.com",
     ],
   },
   {
@@ -388,6 +400,12 @@ export const groups = [
     ],
   },
   {
+    title: "2CP C",
+    src: [
+      "esi.dz_hi4t933dog03gf8ggk0tc29u5c%40group.calendar.google.com",
+    ],
+  },
+  {
     title: "2CP C G09",
     src: [
       "ZXNpLmR6X3VpN2xqdDUxZXBxZmUwdTRrNDZzOGIycThvQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
@@ -399,6 +417,12 @@ export const groups = [
     src: [
       "ZXNpLmR6X3Q4ZzY5a2pkdmI3cnBnZ2sxb2FmOGEydmQ4QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
       "ZXNpLmR6X2hpNHQ5MzNkb2cwM2dmOGdnazB0YzI5dTVjQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+    ],
+  },
+  {
+    title: "1CS A",
+    src: [
+      "esi.dz_7f4tbmk94rfv5lbhbdg1jrpog0%40group.calendar.google.com",
     ],
   },
   {
@@ -430,6 +454,12 @@ export const groups = [
     ],
   },
   {
+    title: "1CS B",
+    src: [
+      "esi.dz_e8s4vrirj0k79ke1n48kgp2c0c%40group.calendar.google.com",
+    ],
+  },
+  {
     title: "1CS B G05",
     src: [
       "esi.dz_q5sqbu4d17l5pfqbngnm4n2m7o%40group.calendar.google.com",
@@ -455,6 +485,12 @@ export const groups = [
     src: [
       "esi.dz_515a77j43mkpceiehajdf5batc%40group.calendar.google.com",
       "Y19hbjZrb29vYmE0NDhvaGpwdWZpcDVnMTBza0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
+    ],
+  },
+  {
+    title: "1CS C",
+    src: [
+      "c_an6koooba448ohjpufip5g10sk%40group.calendar.google.com",
     ],
   },
   {
@@ -485,6 +521,12 @@ export const groups = [
     ],
   },
   {
+    title: "2SL A",
+    src: [
+      "esi.dz_e5qmupbrpn3f83nh0be0nth0s4%40group.calendar.google.com",
+    ],
+  },
+  {
     title: "2SL A G01",
     src: [
       "esi.dz_51jmqgmnc7f2nuobt3n2jna5hc%40group.calendar.google.com",
@@ -499,6 +541,12 @@ export const groups = [
     ],
   },
   {
+    title: "2SQ A",
+    src: [
+      "esi.dz_sp8n1re3q19nfl6m8h6fldbamk%40group.calendar.google.com",
+    ],
+  },
+  {
     title: "2SQ A G01",
     src: [
       "esi.dz_6in0jifhqh1n9l1vjp121lms48%40group.calendar.google.com",
@@ -510,6 +558,12 @@ export const groups = [
     src: [
       "esi.dz_tuh8hq7vmo56j98en5bq5d13g8%40group.calendar.google.com",
       "ZXNpLmR6X3NwOG4xcmUzcTE5bmZsNm04aDZmbGRiYW1rQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+    ],
+  },
+  {
+    title: "2ST A",
+    src: [
+      "esi.dz_ih3qnsqa7j2qb81ndj5ltk2j0g%40group.calendar.google.com",
     ],
   },
   {
@@ -531,6 +585,12 @@ export const groups = [
     src: [
       "esi.dz_0suv62qkqlh3sk5ds89s2jrjtg%40group.calendar.google.com",
       "ZXNpLmR6X2loM3Fuc3FhN2oycWI4MW5kajVsdGsyajBnQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20",
+    ],
+  },
+  {
+    title: "2SD A",
+    src: [
+      "c_h9ouva3he1rn28a7a98q58oa8s%40group.calendar.google.com",
     ],
   },
   {

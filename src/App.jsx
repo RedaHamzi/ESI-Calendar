@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import SearchBar from "./components/SearchBar";
 import MiniNavigator from "./components/MiniNavigator";
 import ThemeToggle from "./components/ThemeToggle";
 import { classes, groups } from "./data/data";
 import { isRunningInCapacitor, applyStatusBarTheme } from "./utils/capacitor";
 import { loadLastSelection } from "./utils/history";
+
+const DebugSync = lazy(() => import("./pages/DebugSync"));
 
 function App() {
   const [list, setList] = useState(classes[0]);
@@ -67,6 +69,15 @@ function App() {
 
   const headerTextColor = isDark ? "text-white" : "text-gray-900";
   const subheaderTextColor = isDark ? "text-purple-200" : "text-purple-600";
+
+  if (typeof window !== 'undefined' &&
+      window.localStorage.getItem('esi-debug') === '1') {
+    return (
+      <Suspense fallback={null}>
+        <DebugSync />
+      </Suspense>
+    );
+  }
 
   return (
     <div className={`${themeClasses} overflow-hidden status-bar-padding`}>
