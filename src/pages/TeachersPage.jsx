@@ -73,10 +73,10 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
           if (!cancelled) setLoadError("Database is not ready yet.");
           return;
         }
-        const { listTeachers } = await import("../services/db");
+        const { listTeachers } = await import("../services/storage/index");
         if (cancelled) return;
         setLoadError(null);
-        const names = await listTeachers(db);
+        const names = await listTeachers();
         if (!cancelled) {
           setTeachers(names);
           useAppStore.getState().setTeachers(names);
@@ -130,10 +130,10 @@ const TeachersPage = ({ isDark, setIsDark, onGoSync, focusTeacher }) => {
           if (!cancelled) setSessions([]);
           return;
         }
-        const { queryTeacherWeek } = await import("../services/db");
+        const { queryTeacherWeek } = await import("../services/storage/index");
         if (cancelled) return;
         const { startMs, endMs } = weekBounds(weekOffset);
-        setSessions(await queryTeacherWeek(db, selected, startMs, endMs));
+        setSessions(await queryTeacherWeek(selected, startMs, endMs));
       } catch (e) {
         console.error(`TeachersPage/loadTeacherWeek: ${e && e.message ? e.message : e}`);
         if (!cancelled) setSessions([]);

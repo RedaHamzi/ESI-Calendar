@@ -2,11 +2,10 @@
 // interface. The concrete backend — native SQLite vs web Dexie (IndexedDB)
 // — is picked at runtime by Capacitor.isNativePlatform().
 //
-// Migration note (Part A): the historic calling convention passes the raw
-// SQLite connection as the first arg (`countSessions(db)`). Adapters now own
-// their connections, so these wrappers accept-but-ignore that first arg.
-// Existing call sites work unchanged; Part F drops the arg everywhere and
-// deletes src/services/db.js. New code should call getStorage() directly.
+// Adapters own their connections: callers never pass a handle, they just
+// call `countSessions()`, `queryTeacherWeek(...)`, etc. (or grab the adapter
+// once via getStorage()). The Zustand store keeps the adapter as `db` for
+// readiness truthiness only.
 
 import { Capacitor } from '@capacitor/core';
 
@@ -40,33 +39,23 @@ export function resetStorage() {
   _implPromise = null;
 }
 
-// Legacy entry point (App root only): resolves the adapter. Returns the
-// storage module, which the app keeps in the Zustand store as `db`.
-export async function openDb() {
-  return getStorage();
-}
-
-export async function getCalendarMeta(db, url) {
+export async function getCalendarMeta(url) {
   return (await getStorage()).getCalendarMeta(url);
 }
 
-export async function upsertCalendarMeta(db, meta) {
+export async function upsertCalendarMeta(meta) {
   return (await getStorage()).upsertCalendarMeta(meta);
 }
 
-export async function replaceSessionsForCalendar(db, calUrl, sessions, opts) {
+export async function replaceSessionsForCalendar(calUrl, sessions, opts) {
   return (await getStorage()).replaceSessionsForCalendar(calUrl, sessions, opts);
 }
 
-// NOTE: single-arg wrappers omit the legacy handle entirely (extra args
-// from old `fn(db)` call sites are ignored by JS). Wrappers that take real
-// args keep a leading `db` placeholder so old positional calls still bind
-// correctly. Part F removes the placeholders everywhere.
 export async function countSessions() {
   return (await getStorage()).countSessions();
 }
 
-export async function countSessionsInRange(db, minStartsAt, maxStartsAt) {
+export async function countSessionsInRange(minStartsAt, maxStartsAt) {
   return (await getStorage()).countSessionsInRange(minStartsAt, maxStartsAt);
 }
 
@@ -78,19 +67,19 @@ export async function countByType() {
   return (await getStorage()).countByType();
 }
 
-export async function queryUpcomingByTeacher(db, teacher, limit) {
+export async function queryUpcomingByTeacher(teacher, limit) {
   return (await getStorage()).queryUpcomingByTeacher(teacher, limit);
 }
 
-export async function queryUpcomingByType(db, type, limit) {
+export async function queryUpcomingByType(type, limit) {
   return (await getStorage()).queryUpcomingByType(type, limit);
 }
 
-export async function querySessionsByCalUrls(db, urls, minSec, maxSec) {
+export async function querySessionsByCalUrls(urls, minSec, maxSec) {
   return (await getStorage()).querySessionsByCalUrls(urls, minSec, maxSec);
 }
 
-export async function queryGroupWeekByCalname(db, calname, weekStartMs, weekEndMs) {
+export async function queryGroupWeekByCalname(calname, weekStartMs, weekEndMs) {
   return (await getStorage()).queryGroupWeekByCalname(calname, weekStartMs, weekEndMs);
 }
 
@@ -102,27 +91,27 @@ export async function rebuildTeachersTable() {
   return (await getStorage()).rebuildTeachersTable();
 }
 
-export async function queryTeacherWeek(db, teacher, weekStartMs, weekEndMs) {
+export async function queryTeacherWeek(teacher, weekStartMs, weekEndMs) {
   return (await getStorage()).queryTeacherWeek(teacher, weekStartMs, weekEndMs);
 }
 
-export async function querySessionsFiltered(db, filters) {
+export async function querySessionsFiltered(filters) {
   return (await getStorage()).querySessionsFiltered(filters);
 }
 
-export async function queryAutreSessions(db, limit) {
+export async function queryAutreSessions(limit) {
   return (await getStorage()).queryAutreSessions(limit);
 }
 
-export async function queryEmptyRoomSessions(db, limit) {
+export async function queryEmptyRoomSessions(limit) {
   return (await getStorage()).queryEmptyRoomSessions(limit);
 }
 
-export async function queryOnlineSessions(db, limit) {
+export async function queryOnlineSessions(limit) {
   return (await getStorage()).queryOnlineSessions(limit);
 }
 
-export async function queryAutrePrefixCounts(db, limit) {
+export async function queryAutrePrefixCounts(limit) {
   return (await getStorage()).queryAutrePrefixCounts(limit);
 }
 

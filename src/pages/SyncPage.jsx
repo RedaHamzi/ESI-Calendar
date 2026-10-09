@@ -10,7 +10,7 @@ import {
   countSessionsInRange,
   getSyncOverview,
   getSyncRangeBounds,
-} from "../services/db";
+} from "../services/storage/index";
 import { useAppStore } from "../store/appStore";
 import { useLocation } from "wouter";
 import useOnlineStatus from "../hooks/useOnlineStatus";
@@ -132,16 +132,16 @@ const SyncPage = ({ isDark, onBack }) => {
         return;
       }
       const [total, monthBounds, weekBounds] = [
-        await countSessions(db),
+        await countSessions(),
         getSyncRangeBounds("month"),
         getSyncRangeBounds("week"),
       ];
       const [month, week] = await Promise.all([
-        countSessionsInRange(db, monthBounds.minStartsAt, monthBounds.maxStartsAt),
-        countSessionsInRange(db, weekBounds.minStartsAt, weekBounds.maxStartsAt),
+        countSessionsInRange(monthBounds.minStartsAt, monthBounds.maxStartsAt),
+        countSessionsInRange(weekBounds.minStartsAt, weekBounds.maxStartsAt),
       ]);
       setCounts({ total, month, week });
-      setOverview({ ...(await getSyncOverview(db)), total });
+      setOverview({ ...(await getSyncOverview()), total });
     } catch (e) {
       console.error(`SyncPage/loadStats: ${e && e.message ? e.message : e}`);
       setNotice("Couldn't read the local database yet. Try reopening the app.");

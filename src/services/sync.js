@@ -1,7 +1,7 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
 import { Capacitor } from '@capacitor/core';
-import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds, rebuildTeachersTable } from './db';
+import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds, rebuildTeachersTable } from './storage/index.js';
 import { emitSync } from './syncEvents';
 import { useAppStore } from '../store/appStore';
 
@@ -94,14 +94,15 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function syncOne(url, options) {
   const force = !!(options && options.force);
   const range = (options && options.range) || DEFAULT_SYNC_RANGE;
-  // DB comes from the Zustand store (App root is the only openDb() caller).
+  // Storage readiness comes from the Zustand store (App root is the only
+  // getStorage() caller); the facade below resolves the adapter itself.
   const db = useAppStore.getState().db;
   if (!db) {
     const msg = 'syncOne: database not ready (db not opened yet)';
     console.error(`syncOne: ${msg} for ${url}`);
     return { url, status: 'error', error: msg };
   }
-  const meta = force ? null : await getCalendarMeta(db, url);
+  const meta = force ? null : await getCalendarMeta(url);
   // A range switch must refetch even when the ETag is fresh, otherwise the
   // stored rows would keep the previous range's data under the new label.
   const rangeChanged = !!(meta && meta.sync_range && meta.sync_range !== range);
@@ -138,8 +139,8 @@ export async function syncOne(url, options) {
     try {
       // Touch last_synced through the storage interface (no raw SQL —
       // the web backend has no SQL connection).
-      const prev = await getCalendarMeta(db, url);
-      await upsertCalendarMeta(db, {
+      const prev = await getCalendarMeta(url);
+      await upsertCalendarMeta({
         url,
         calname: (prev && prev.calname) || null,
         etag: (prev && prev.etag) || null,
@@ -176,8 +177,8 @@ export async function syncOne(url, options) {
 
   try {
     const bounds = getSyncRangeBounds(range);
-    const stored = await replaceSessionsForCalendar(db, url, parsed.sessions, bounds);
-    await upsertCalendarMeta(db, {
+    const stored = await replaceSessionsForCalendar(url, parsed.sessions, bounds);
+    await upsertCalendarMeta({
       url,
       calname: parsed.calname || null,
       etag: response.headers.get('etag'),
@@ -261,7 +262,7 @@ export async function syncAll(urls, onProgress, options) {
     const db = useAppStore.getState().db;
     if (db) {
       const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      await rebuildTeachersTable(db);
+      await rebuildTeachersTable();
       const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       console.log(`[sync] rebuildTeachersTable ms=${Math.round(now - t0)}`);
       // Clear the cached list so TeachersPage re-queries the fresh table.

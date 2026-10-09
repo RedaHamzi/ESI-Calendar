@@ -33,9 +33,9 @@ export const useAppStore = create((set, get) => ({
       return;
     }
     try {
-      const { countSessions, getSyncOverview, listTeachers } = await import("../services/db");
-      const sessionCount = await countSessions(db);
-      const overview = await getSyncOverview(db);
+      const { countSessions, getSyncOverview, listTeachers } = await import("../services/storage/index");
+      const sessionCount = await countSessions();
+      const overview = await getSyncOverview();
       set({
         sessionCount,
         calendarsSynced: Number(overview.calendars) || 0,
@@ -45,7 +45,7 @@ export const useAppStore = create((set, get) => ({
       // Skipped when the DB is empty (nothing to list yet).
       if (sessionCount > 0) {
         try {
-          const teachers = await listTeachers(db);
+          const teachers = await listTeachers();
           set({ teachers });
         } catch (e) {
           console.error(`appStore/refreshCounts/listTeachers: ${e && e.message ? e.message : e}`);

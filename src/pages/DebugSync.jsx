@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { classes, groups } from '../data/data';
-import { countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline, getSyncOverview, countRoomsEmpty } from '../services/db';
+import { countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline, getSyncOverview, countRoomsEmpty } from '../services/storage/index';
 import { syncAll, getCalendarUrls, calendarIdToIcsUrl } from '../services/sync';
 import { useAppStore } from '../store/appStore';
 
@@ -87,11 +87,11 @@ export default function DebugSync() {
       setError('Database is not ready yet.');
       return;
     }
-    const total = await countSessions(db);
-    const byType = await countByType(db);
-    const overview = await getSyncOverview(db);
-    const emptyRooms = await countRoomsEmpty(db);
-    const onlineCount = await countOnline(db);
+    const total = await countSessions();
+    const byType = await countByType();
+    const overview = await getSyncOverview();
+    const emptyRooms = await countRoomsEmpty();
+    const onlineCount = await countOnline();
     setStats({
       total,
       byType,
@@ -102,12 +102,12 @@ export default function DebugSync() {
     });
     const DIAG_LIMIT = 20;
     const [autreTotal, autreRows, emptyRoomsTotal, emptyRoomRows, onlineTotal, onlineRows] = await Promise.all([
-      countAutre(db),
-      queryAutreSessions(db, DIAG_LIMIT),
-      countEmptyRooms(db),
-      queryEmptyRoomSessions(db, DIAG_LIMIT),
-      countOnline(db),
-      queryOnlineSessions(db, DIAG_LIMIT),
+      countAutre(),
+      queryAutreSessions(DIAG_LIMIT),
+      countEmptyRooms(),
+      queryEmptyRoomSessions(DIAG_LIMIT),
+      countOnline(),
+      queryOnlineSessions(DIAG_LIMIT),
     ]);
     setDiagnostics({
       autreTotal,
@@ -172,7 +172,7 @@ export default function DebugSync() {
         setError('Database is not ready yet.');
         return;
       }
-      const rows = await queryUpcomingByTeacher(db, teacher.trim(), 5);
+      const rows = await queryUpcomingByTeacher(teacher.trim(), 5);
       setTeacherResults(rows);
     } catch (err) {
       setError(err.message || String(err));

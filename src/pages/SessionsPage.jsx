@@ -157,10 +157,10 @@ const SessionsPage = ({
           return;
         }
         const { querySessionsFiltered } = await import(
-          "../services/db"
+          "../services/storage/index"
         );
         if (cancelled) return;
-        const rows = await querySessionsFiltered(db, {
+        const rows = await querySessionsFiltered({
           type: sessionType,
           subject: subject.trim(),
           minMs: bounds.minMs,

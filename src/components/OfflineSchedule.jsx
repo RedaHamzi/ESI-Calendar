@@ -57,15 +57,14 @@ const OfflineSchedule = ({ list, type, isDark, onGoSync, refreshTick }) => {
           return;
         }
         const { querySessionsByCalUrls, queryGroupWeekByCalname } =
-          await import("../services/db");
+          await import("../services/storage/index");
         if (cancelled) return;
         const urls = urlsForSelection(list, type);
         const minSec = Math.floor(weekSundayMs / 1000);
         const maxSec = Math.floor(thursdayEnd / 1000);
-        let sessions = await querySessionsByCalUrls(db, urls, minSec, maxSec);
+        let sessions = await querySessionsByCalUrls(urls, minSec, maxSec);
         if (sessions.length === 0 && list && list.title) {
           sessions = await queryGroupWeekByCalname(
-            db,
             list.title,
             weekSundayMs,
             thursdayEnd,
