@@ -39,7 +39,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
               onClick={() => onPickScheduleMode && onPickScheduleMode(nextMode)}
               aria-label={isOffline ? "Switch to online schedule" : "Switch to offline schedule"}
               title={isOffline ? "Showing cached schedule" : "Showing live schedule"}
-              className={`flex items-center gap-1 min-h-[44px] min-w-[44px] px-2 rounded-xl text-xs font-semibold active:scale-[0.97] transition-transform ${
+              className={`flex items-center gap-1 min-h-[40px] min-w-[44px] px-2 py-1.5 rounded-xl text-xs font-semibold active:scale-[0.97] transition-transform ${
                 isOffline
                   ? isDark
                     ? "bg-indigo-600 text-white"
