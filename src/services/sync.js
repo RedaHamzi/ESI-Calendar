@@ -20,6 +20,11 @@ export function canSyncOnThisPlatform() {
 export const BROWSER_SYNC_UNAVAILABLE =
   'Sync from the browser is not supported. Use the mobile app for offline data.';
 
+// Persistent production-web banner (SyncPage top). Differs from the toast
+// above: this one names production + the mobile app explicitly.
+export const BROWSER_SYNC_PROD_MESSAGE =
+  'Browser sync is not available in production. Install the mobile app for full offline support.';
+
 export function calendarIdToIcsUrl(calendarId) {
   const id = String(calendarId || '').trim().replace(/&+$/, '');
   return `https://calendar.google.com/calendar/ical/${id}/public/basic.ics`;

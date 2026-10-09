@@ -19,6 +19,7 @@ import {
   DEFAULT_SYNC_RANGE,
   canSyncOnThisPlatform,
   BROWSER_SYNC_UNAVAILABLE,
+  BROWSER_SYNC_PROD_MESSAGE,
 } from "../services/sync";
 import { useSyncStore } from "../store/syncStore";
 
@@ -191,14 +192,16 @@ const SyncPage = ({ isDark, onBack }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
-          {/* Production web: no ICS proxy exists, so sync cannot run here. */}
+          {/* Production web: no ICS proxy exists, so sync cannot run here.
+              Buttons stay tappable (aria-disabled) so a tap explains via
+              toast instead of failing silently. */}
           {!canSync && (
             <div className={`rounded-2xl p-4 border ${cardClass}`}>
               <h2 className={`font-semibold text-lg ${textClass}`}>
                 Browser sync unavailable
               </h2>
               <p className={`text-sm mt-1 ${subClass}`}>
-                {BROWSER_SYNC_UNAVAILABLE}
+                {BROWSER_SYNC_PROD_MESSAGE}
               </p>
             </div>
           )}
@@ -234,12 +237,12 @@ const SyncPage = ({ isDark, onBack }) => {
               {RANGES.map(({ id, label, hint }) => {
                 const selected = range === id;
                 const n = countFor(id);
-                const offlineDisabled = !online && !syncing;
+                const offlineDisabled = (!online || !canSync) && !syncing;
                 return (
                   <button
                     key={id}
                     type="button"
-                    disabled={syncing || !canSync}
+                    disabled={syncing}
                     aria-disabled={!online || !canSync}
                     onClick={() => runSync(id)}
                     aria-label={label}
@@ -280,11 +283,11 @@ const SyncPage = ({ isDark, onBack }) => {
 
             <button
               type="button"
-              disabled={syncing || !canSync}
+              disabled={syncing}
               aria-disabled={!online || !canSync}
               onClick={() => runSync()}
               aria-label="Sync now"
-              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${!online && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
+              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${(!online || !canSync) && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
                 isDark
                   ? "bg-indigo-600 text-white"
                   : "bg-indigo-500 text-white"
