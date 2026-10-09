@@ -113,7 +113,17 @@ export async function syncOne(url, options) {
 
   if (response.status === 304) {
     try {
-      await db.run('UPDATE calendars SET last_synced = ? WHERE url = ?', [Date.now(), url]);
+      // Touch last_synced through the storage interface (no raw SQL —
+      // the web backend has no SQL connection).
+      const prev = await getCalendarMeta(db, url);
+      await upsertCalendarMeta(db, {
+        url,
+        calname: (prev && prev.calname) || null,
+        etag: (prev && prev.etag) || null,
+        last_synced: Date.now(),
+        event_count: prev && prev.event_count != null ? prev.event_count : null,
+        sync_range: (prev && prev.sync_range) || range,
+      });
     } catch (err) {
       console.error(`syncOne: last_synced update failed for ${url}: ${err.message}`);
     }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { classes, groups } from '../data/data';
-import { countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline } from '../services/db';
+import { countSessions, countByType, queryUpcomingByTeacher, queryAutreSessions, queryEmptyRoomSessions, queryOnlineSessions, countAutre, countEmptyRooms, countOnline, getSyncOverview, countRoomsEmpty } from '../services/db';
 import { syncAll, getCalendarUrls, calendarIdToIcsUrl } from '../services/sync';
 import { useAppStore } from '../store/appStore';
 
@@ -29,14 +29,16 @@ function formatStartsAtISO(sec) {
   }
 }
 
-function formatRooms(roomsJson) {
+function formatRooms(rooms) {
+  // Web (Dexie) stores rooms as a real array; native (SQLite) as JSON text.
+  if (Array.isArray(rooms)) return rooms.length > 0 ? rooms.join(', ') : '(none)';
   try {
-    const rooms = JSON.parse(roomsJson);
-    if (Array.isArray(rooms)) return rooms.length > 0 ? rooms.join(', ') : '(none)';
+    const parsed = JSON.parse(rooms);
+    if (Array.isArray(parsed)) return parsed.length > 0 ? parsed.join(', ') : '(none)';
   } catch (err) {
     // fall through to raw display
   }
-  return roomsJson || '(none)';
+  return rooms || '(none)';
 }
 
 export default function DebugSync() {
@@ -87,17 +89,15 @@ export default function DebugSync() {
     }
     const total = await countSessions(db);
     const byType = await countByType(db);
-    const calResult = await db.query('SELECT COUNT(*) AS n, MAX(last_synced) AS lastSynced FROM calendars');
-    const calRows = calResult && Array.isArray(calResult.values) ? calResult.values : [];
-    const roomResult = await db.query("SELECT COUNT(*) AS n FROM sessions WHERE rooms = '[]'");
-    const roomRows = roomResult && Array.isArray(roomResult.values) ? roomResult.values : [];
+    const overview = await getSyncOverview(db);
+    const emptyRooms = await countRoomsEmpty(db);
     const onlineCount = await countOnline(db);
     setStats({
       total,
       byType,
-      calendars: calRows.length > 0 ? Number(calRows[0].n) : 0,
-      lastSynced: calRows.length > 0 ? calRows[0].lastSynced : null,
-      emptyRooms: roomRows.length > 0 ? Number(roomRows[0].n) : 0,
+      calendars: Number(overview.calendars) || 0,
+      lastSynced: overview.lastSynced,
+      emptyRooms,
       online: onlineCount,
     });
     const DIAG_LIMIT = 20;

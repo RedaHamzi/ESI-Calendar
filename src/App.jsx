@@ -258,17 +258,18 @@ function App() {
     }
   };
 
-  // Single DB open for the whole app. App root is the ONLY openDb()
-  // caller — every other module reads the connection from the store.
+  // Single storage open for the whole app. App root is the ONLY
+  // getStorage() caller — every other module reads the adapter from the
+  // store (native: SQLite, web: Dexie/IndexedDB).
   // No silent sync: sync happens only when the user taps a Sync button.
   useEffect(() => {
     let cancelled = false;
     const initDb = async () => {
       try {
-        const { openDb } = await import("./services/db");
-        const db = await openDb();
+        const { getStorage } = await import("./services/storage/index");
+        const storage = await getStorage();
         if (cancelled) return;
-        useAppStore.getState().setDb(db);
+        useAppStore.getState().setDb(storage);
         await useAppStore.getState().refreshCounts();
       } catch (e) {
         if (!cancelled) {
