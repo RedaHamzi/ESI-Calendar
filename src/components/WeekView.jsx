@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useMemo, Fragment } from "react";
+import { useMemo } from "react";
 import {
   SCHOOL_DAY_NAMES,
   HOUR_SLOTS,
@@ -13,7 +13,7 @@ function parseRooms(roomsJson) {
     const rooms = JSON.parse(roomsJson);
     if (Array.isArray(rooms)) return rooms;
   } catch (e) {
-    // fall through to empty
+    console.error(`WeekView/parseRooms: ${e && e.message ? e.message : e}`);
   }
   return [];
 }
@@ -47,10 +47,25 @@ function styleFor(sessionType, isDark) {
   };
 }
 
+// Grid geometry. Rows are hourly (HOUR_SLOTS steps of 1h starting 08:30) and
+// each row is exactly ROW_HEIGHT_PX tall, so event blocks are positioned and
+// sized proportionally to the minute — never snapped to row boundaries.
+// Do NOT revert to grid-row spans: arbitrary durations (e.g. 85 min) break.
+const ROW_HEIGHT_PX = 44;
+const ROW_MINUTES = 60;
+const GRID_START_MIN = 8 * 60 + 30; // 08:30 in minutes since midnight
+const GRID_TOTAL_PX = HOUR_SLOTS.length * ROW_HEIGHT_PX;
+const MIN_BLOCK_PX = 24;
+
+function minutesOfDay(startsAtSec) {
+  const d = new Date(Number(startsAtSec) * 1000);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
 // sessions: DB rows (starts_at/ends_at in unix seconds).
 // weekSundayMs: Sunday 00:00 local time of the week to render.
 // onSessionClick: optional — when provided, event blocks become tappable
-// buttons (44px min touch area) that report the clicked session.
+// buttons that report the clicked session.
 const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
   const byDay = useMemo(() => {
     const list = Array.isArray(sessions) ? sessions : [];
@@ -83,20 +98,109 @@ const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
     return buckets;
   }, [sessions, weekSundayMs]);
 
-  const slotOf = (startsAtSec) => {
-    const d = new Date(Number(startsAtSec) * 1000);
-    const value = d.getHours() + d.getMinutes() / 60;
-    for (let i = HOUR_SLOTS.length - 1; i >= 0; i -= 1) {
-      if (value >= HOUR_SLOTS[i]) return i;
-    }
-    return 0;
-  };
+  // Per-day absolute layout: exact top/height in px from session times plus
+  // greedy lane assignment so overlapping sessions share the column width
+  // instead of covering each other. Non-overlapping days use one full lane.
+  const layoutByDay = useMemo(
+    () =>
+      byDay.map((bucket) => {
+        const items = [];
+        for (const s of bucket) {
+          const startMin = minutesOfDay(s.starts_at);
+          const endMin = minutesOfDay(s.ends_at);
+          if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) continue;
+          const top = ((startMin - GRID_START_MIN) / ROW_MINUTES) * ROW_HEIGHT_PX;
+          const bottom = ((endMin - GRID_START_MIN) / ROW_MINUTES) * ROW_HEIGHT_PX;
+          // Skip sessions entirely outside the rendered grid.
+          if (!(bottom > 0 && top < GRID_TOTAL_PX)) continue;
+          items.push({ s, top, bottom });
+        }
+        items.sort((a, b) => a.top - b.top || b.bottom - a.bottom);
+        const laneEnds = [];
+        for (const it of items) {
+          let lane = laneEnds.findIndex((end) => end <= it.top);
+          if (lane === -1) {
+            lane = laneEnds.length;
+            laneEnds.push(it.bottom);
+          } else {
+            laneEnds[lane] = it.bottom;
+          }
+          it.lane = lane;
+        }
+        const lanes = Math.max(1, laneEnds.length);
+        return items.map((it) => {
+          const topPx = Math.max(0, it.top);
+          const bottomPx = Math.min(it.bottom, GRID_TOTAL_PX);
+          const heightPx = Math.max(MIN_BLOCK_PX, bottomPx - topPx);
+          return {
+            s: it.s,
+            topPx,
+            heightPx,
+            leftPct: (it.lane / lanes) * 100,
+            widthPct: 100 / lanes,
+          };
+        });
+      }),
+    [byDay],
+  );
 
   const headerColor = isDark ? "text-slate-300" : "text-gray-600";
   const gridBorder = isDark ? "border-white/10" : "border-purple-100";
   const hourColor = isDark ? "text-slate-400" : "text-gray-500";
 
   const sunday = new Date(weekSundayMs);
+
+  const renderBlock = (item) => {
+    const { s, topPx, heightPx, leftPct, widthPct } = item;
+    const st = styleFor(s.session_type, isDark);
+    const rooms = parseRooms(s.rooms);
+    const label = `${s.subject || "Session"} ${s.session_type || ""}`.trim();
+    const blockClass = `rounded-md border px-1 py-0.5 text-[10px] leading-tight overflow-hidden ${st.block}`;
+    const style = {
+      position: "absolute",
+      top: `${topPx}px`,
+      height: `${heightPx}px`,
+      left: `calc(${leftPct}% + 2px)`,
+      width: `calc(${widthPct}% - 4px)`,
+    };
+    const inner = (
+      <>
+        <div className="font-bold truncate">
+          {s.subject || "(no subject)"}
+        </div>
+        <div className="truncate opacity-80">
+          {formatTimeMs(Number(s.starts_at) * 1000)}
+          {"–"}
+          {formatTimeMs(Number(s.ends_at) * 1000)}
+          {rooms.length > 0 ? ` · ${rooms.join(", ")}` : ""}
+        </div>
+        <span
+          className={`inline-block mt-0.5 rounded px-1 text-[9px] font-semibold ${st.badge}`}
+        >
+          {s.session_type}
+        </span>
+      </>
+    );
+    if (typeof onSessionClick === "function") {
+      return (
+        <button
+          key={`${s.uid}|${s.recurrence_id}`}
+          type="button"
+          onClick={() => onSessionClick(s)}
+          aria-label={label}
+          style={style}
+          className={`block text-left cursor-pointer active:scale-[0.98] transition-transform ${blockClass}`}
+        >
+          {inner}
+        </button>
+      );
+    }
+    return (
+      <div key={`${s.uid}|${s.recurrence_id}`} style={style} className={blockClass}>
+        {inner}
+      </div>
+    );
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -123,68 +227,26 @@ const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
               </div>
             );
           })}
-          {HOUR_SLOTS.map((slot, row) => (
-            <Fragment key={`row-${slot}`}>
+          <div>
+            {HOUR_SLOTS.map((slot) => (
               <div
-                className={`border-b ${gridBorder} py-1 pr-1 text-right text-[10px] ${hourColor}`}
+                key={`h-${slot}`}
+                className={`border-b ${gridBorder} h-11 py-1 pr-1 text-right text-[10px] ${hourColor}`}
               >
                 {formatHourLabel(slot)}
               </div>
-              {[0, 1, 2, 3, 4].map((day) => (
+            ))}
+          </div>
+          {[0, 1, 2, 3, 4].map((day) => (
+            <div key={`day-${day}`} className="relative">
+              {HOUR_SLOTS.map((slot) => (
                 <div
                   key={`c-${slot}-${day}`}
-                  className={`border-b border-l ${gridBorder} p-0.5 min-h-[44px]`}
-                >
-                  {byDay[day]
-                    .filter((s) => slotOf(s.starts_at) === row)
-                    .map((s) => {
-                      const st = styleFor(s.session_type, isDark);
-                      const rooms = parseRooms(s.rooms);
-                      const label = `${s.subject || "Session"} ${s.session_type || ""}`.trim();
-                      const blockClass = `rounded-md border px-1 py-0.5 mb-0.5 text-[10px] leading-tight ${st.block}`;
-                      const inner = (
-                        <>
-                          <div className="font-bold truncate">
-                            {s.subject || "(no subject)"}
-                          </div>
-                          <div className="truncate opacity-80">
-                            {formatTimeMs(Number(s.starts_at) * 1000)}
-                            {"–"}
-                            {formatTimeMs(Number(s.ends_at) * 1000)}
-                            {rooms.length > 0 ? ` · ${rooms.join(", ")}` : ""}
-                          </div>
-                          <span
-                            className={`inline-block mt-0.5 rounded px-1 text-[9px] font-semibold ${st.badge}`}
-                          >
-                            {s.session_type}
-                          </span>
-                        </>
-                      );
-                      if (typeof onSessionClick === "function") {
-                        return (
-                          <button
-                            key={`${s.uid}|${s.recurrence_id}`}
-                            type="button"
-                            onClick={() => onSessionClick(s)}
-                            aria-label={label}
-                            className={`block w-full min-h-[44px] text-left cursor-pointer active:scale-[0.98] transition-transform ${blockClass}`}
-                          >
-                            {inner}
-                          </button>
-                        );
-                      }
-                      return (
-                        <div
-                          key={`${s.uid}|${s.recurrence_id}`}
-                          className={blockClass}
-                        >
-                          {inner}
-                        </div>
-                      );
-                    })}
-                </div>
+                  className={`border-b border-l ${gridBorder} h-11`}
+                />
               ))}
-            </Fragment>
+              {layoutByDay[day].map(renderBlock)}
+            </div>
           ))}
         </div>
       </div>
