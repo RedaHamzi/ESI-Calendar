@@ -55,6 +55,14 @@ const SyncPage = ({ isDark, onBack }) => {
   const handleBack = onBack || (() => navigate("/more"));
   const [range, setRange] = useState(() => {
     try {
+      // After an interrupted sync, preselect the range that was running.
+      const st = useSyncStore.getState();
+      if (
+        st.status === "incomplete" &&
+        (st.lastRange === "week" || st.lastRange === "month")
+      ) {
+        return st.lastRange;
+      }
       const stored = localStorage.getItem(RANGE_KEY) || DEFAULT_SYNC_RANGE;
       // The 'year' range option was removed — migrate to the new default.
       return stored === "year" ? "month" : stored;
@@ -173,6 +181,18 @@ const SyncPage = ({ isDark, onBack }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
+          {/* Interrupted sync: resume is a plain re-run of any range. */}
+          {status === "incomplete" && (
+            <div className={`rounded-2xl p-4 border ${cardClass}`}>
+              <h2 className={`font-semibold text-lg ${textClass}`}>
+                Previous sync was interrupted.
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                Tap any sync option to continue. Already-synced calendars
+                will be skipped.
+              </p>
+            </div>
+          )}
           {/* CASE D: the Sync page itself shows a "No internet" state. */}
           {!online && (
             <div className={`rounded-2xl p-6 border text-center ${cardClass}`}>

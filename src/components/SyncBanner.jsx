@@ -16,6 +16,7 @@ import { useSyncStore } from "../store/syncStore";
 const SyncBanner = ({ isDark }) => {
   const status = useSyncStore((s) => s.status);
   const progress = useSyncStore((s) => s.progress);
+  const interrupted = useSyncStore((s) => s.interrupted);
   const [, navigate] = useLocation();
 
   // "Syncing done." auto-dismisses after ~3 seconds.
@@ -52,7 +53,9 @@ const SyncBanner = ({ isDark }) => {
     message = "Syncing done.";
     Icon = FiCheckCircle;
   } else if (status === "incomplete") {
-    message = "Syncing not finished. Tap to resume.";
+    message = interrupted
+      ? "Sync stopped. Tap to continue."
+      : "Syncing not finished. Tap to resume.";
     Icon = FiAlertTriangle;
   } else if (status === "error") {
     message = "Syncing failed. Tap for details.";
