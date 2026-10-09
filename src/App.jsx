@@ -4,6 +4,7 @@ import { Router, Route, Switch, useLocation } from "wouter";
 import { App as CapApp } from "@capacitor/app";
 import BottomTabBar from "./components/BottomTabBar";
 import Toast from "./components/Toast";
+import GlobalToast from "./components/GlobalToast";
 import ConfirmDialog from "./components/ConfirmDialog";
 import SyncBanner from "./components/SyncBanner";
 import SchedulePage from "./pages/SchedulePage";
@@ -139,6 +140,8 @@ function Shell({
           isDark={isDark}
         />
       )}
+
+      <GlobalToast isDark={isDark} />
 
       {showExit && (
         <ConfirmDialog

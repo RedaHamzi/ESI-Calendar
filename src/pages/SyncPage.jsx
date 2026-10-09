@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiRefreshCw, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import PullToRefresh from "../components/PullToRefresh";
-import Toast from "../components/Toast";
+import { notifyOffline } from "../store/toastStore";
 import { classes, groups } from "../data/data";
 import {
   countSessions,
@@ -74,8 +74,6 @@ const SyncPage = ({ isDark, onBack }) => {
   const [overview, setOverview] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [notice, setNotice] = useState(null);
-  // Offline-tap feedback: exact-message toast, rendered below.
-  const [toast, setToast] = useState(null);
   // Sync state is global (useSyncStore) so progress survives navigation;
   // this page only reads the store, never owns the sync promise.
   const status = useSyncStore((s) => s.status);
@@ -151,7 +149,9 @@ const SyncPage = ({ isDark, onBack }) => {
   const runSync = async (nextRange) => {
     if (syncing) return;
     if (!online) {
-      setToast({ id: Date.now(), message: "Open Wi-Fi or mobile data first." });
+      // Instant feedback; the store's start() gate re-checks and toasts
+      // too, so no entry point can bypass the message.
+      notifyOffline();
       return;
     }
     const chosen = nextRange || range;
@@ -342,14 +342,6 @@ const SyncPage = ({ isDark, onBack }) => {
         </div>
         </PullToRefresh>
       </main>
-      {toast && (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          onClose={() => setToast(null)}
-          isDark={isDark}
-        />
-      )}
     </div>
   );
 };

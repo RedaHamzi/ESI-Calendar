@@ -9,6 +9,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { useSyncStore } from "../store/syncStore";
+import { notifyOffline } from "../store/toastStore";
 
 // Floating global sync banner. Reflects useSyncStore directly; mounted once
 // at the app root so it survives tab navigation. Floats below the status
@@ -83,6 +84,11 @@ const SyncBanner = ({ isDark }) => {
 
   const goSync = () => {
     try {
+      // Tapping resume while offline can't start a sync — show the exact
+      // offline message, then still navigate so the user lands on Sync.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        notifyOffline();
+      }
       navigate("/more/sync");
     } catch (e) {
       console.error(`SyncBanner/goSync: ${e && e.message ? e.message : e}`);

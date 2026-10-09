@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { notifyOffline } from "./toastStore";
 
 // Global sync state. This store lives at the module level, so the sync
 // promise created by start() survives any component unmount — navigating
@@ -126,11 +127,12 @@ export const useSyncStore = create((set, get) => ({
   start: async (range) => {
     if (get().status === "running") return null;
     const chosen = range === "week" ? "week" : "month";
-    // Offline: refuse to start without touching the store status — the
-    // caller (SyncPage) shows the "Open Wi-Fi or mobile data first." toast.
+    // Central offline gate: no caller can bypass this. Shows the exact
+    // offline toast, leaves status untouched, never calls syncAll.
     // Mid-sync disconnects keep the existing per-URL error path in syncAll.
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       console.error("syncStore/start: offline, sync not started");
+      notifyOffline();
       return null;
     }
     try {
