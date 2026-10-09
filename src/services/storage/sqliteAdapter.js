@@ -21,6 +21,8 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 
+export { SYNC_RANGES, ACADEMIC_YEAR_BOUNDS, getSyncRangeBounds } from '../syncRange.js';
+
 export const DB_NAME = 'esi_calendar';
 
 const SCHEMA_STATEMENTS = [
