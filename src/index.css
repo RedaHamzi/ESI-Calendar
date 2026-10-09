@@ -13,9 +13,11 @@
 /* Safe area top only: env() covers the iOS notch/Dynamic Island;
    fixed defaults (>=32px) cover Android status bar and web. The extra 8px
    over the old 24px minimum keeps the Schedule online/offline toggle clear
-   of the Android status-bar icons; on web (no inset) it is a slim 32px. */
+   of the Android status-bar icons; on web (no inset) it is a slim 32px.
+   Phase 6: +5px breathing room on every page (single shared utility, so
+   all pages inherit it; .status-bar-padding is unused and left alone). */
 .safe-area-top {
-  padding-top: max(32px, calc(env(safe-area-inset-top, 0px) + 8px));
+  padding-top: calc(max(32px, calc(env(safe-area-inset-top, 0px) + 8px)) + 5px);
 }
 
 /* Top padding for the app root container on native devices.
@@ -37,7 +39,7 @@
   }
   
   .safe-area-top {
-    padding-top: max(33px, calc(env(safe-area-inset-top, 0px) + 8px));
+    padding-top: calc(max(33px, calc(env(safe-area-inset-top, 0px) + 8px)) + 5px);
   }
   
   .safe-area-bottom {
@@ -53,7 +55,7 @@
   }
   
   .safe-area-top {
-    padding-top: max(38px, calc(env(safe-area-inset-top, 0px) + 8px));
+    padding-top: calc(max(38px, calc(env(safe-area-inset-top, 0px) + 8px)) + 5px);
   }
   
   .safe-area-bottom {
