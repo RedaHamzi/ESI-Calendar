@@ -53,4 +53,14 @@ export function notifyOffline() {
   }
 }
 
+// Production-web sync notifier: sync needs the native shell (or the dev
+// proxy), so a prod-web sync attempt explains instead of failing silently.
+export function notifyBrowserSyncUnavailable(message) {
+  try {
+    useToastStore.getState().showToast(message);
+  } catch (e) {
+    console.error(`toastStore/notifyBrowserSyncUnavailable: ${e && e.message ? e.message : e}`);
+  }
+}
+
 export default useToastStore;

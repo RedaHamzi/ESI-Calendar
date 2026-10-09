@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiRefreshCw, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import PullToRefresh from "../components/PullToRefresh";
-import { notifyOffline } from "../store/toastStore";
+import { notifyOffline, notifyBrowserSyncUnavailable } from "../store/toastStore";
 import { classes, groups } from "../data/data";
 import {
   countSessions,
@@ -17,6 +17,8 @@ import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
   calendarIdToIcsUrl,
   DEFAULT_SYNC_RANGE,
+  canSyncOnThisPlatform,
+  BROWSER_SYNC_UNAVAILABLE,
 } from "../services/sync";
 import { useSyncStore } from "../store/syncStore";
 
@@ -115,6 +117,9 @@ const SyncPage = ({ isDark, onBack }) => {
 
   const dbReady = useAppStore((s) => s.dbReady);
   const online = useOnlineStatus();
+  // Production web has no ICS proxy (CORS) — sync is unavailable there.
+  // Dev web syncs through the Vite /ics proxy; native always syncs.
+  const canSync = canSyncOnThisPlatform();
 
   const labelFor = (url) => titleByUrl.get(url) || url;
 
@@ -148,6 +153,11 @@ const SyncPage = ({ isDark, onBack }) => {
 
   const runSync = async (nextRange) => {
     if (syncing) return;
+    if (!canSync) {
+      // Reachable via pull-to-refresh when the buttons are disabled.
+      notifyBrowserSyncUnavailable(BROWSER_SYNC_UNAVAILABLE);
+      return;
+    }
     if (!online) {
       // Instant feedback; the store's start() gate re-checks and toasts
       // too, so no entry point can bypass the message.
@@ -181,6 +191,17 @@ const SyncPage = ({ isDark, onBack }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
+          {/* Production web: no ICS proxy exists, so sync cannot run here. */}
+          {!canSync && (
+            <div className={`rounded-2xl p-4 border ${cardClass}`}>
+              <h2 className={`font-semibold text-lg ${textClass}`}>
+                Browser sync unavailable
+              </h2>
+              <p className={`text-sm mt-1 ${subClass}`}>
+                {BROWSER_SYNC_UNAVAILABLE}
+              </p>
+            </div>
+          )}
           {/* Interrupted sync: resume is a plain re-run of any range. */}
           {status === "incomplete" && (
             <div className={`rounded-2xl p-4 border ${cardClass}`}>
@@ -218,8 +239,8 @@ const SyncPage = ({ isDark, onBack }) => {
                   <button
                     key={id}
                     type="button"
-                    disabled={syncing}
-                    aria-disabled={!online}
+                    disabled={syncing || !canSync}
+                    aria-disabled={!online || !canSync}
                     onClick={() => runSync(id)}
                     aria-label={label}
                     aria-pressed={selected}
@@ -259,8 +280,8 @@ const SyncPage = ({ isDark, onBack }) => {
 
             <button
               type="button"
-              disabled={syncing}
-              aria-disabled={!online}
+              disabled={syncing || !canSync}
+              aria-disabled={!online || !canSync}
               onClick={() => runSync()}
               aria-label="Sync now"
               className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${!online && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${

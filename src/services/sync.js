@@ -1,11 +1,24 @@
 import { classes, groups } from '../data/data';
 import { parseIcs } from './ics';
+import { Capacitor } from '@capacitor/core';
 import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds, rebuildTeachersTable } from './db';
 import { emitSync } from './syncEvents';
 import { useAppStore } from '../store/appStore';
 
 export const FETCH_DELAY_MS = 300;
 export const DEFAULT_SYNC_RANGE = 'month';
+
+// Web sync availability: native always can; web only in dev (Vite /ics
+// proxy, see vite.config.js). Production web has no proxy and Google sends
+// no CORS headers, so sync is disabled there with a clear Sync-page
+// message instead of failing per-calendar.
+export function canSyncOnThisPlatform() {
+  if (Capacitor.isNativePlatform()) return true;
+  return Boolean(import.meta.env?.DEV);
+}
+
+export const BROWSER_SYNC_UNAVAILABLE =
+  'Sync from the browser is not supported. Use the mobile app for offline data.';
 
 export function calendarIdToIcsUrl(calendarId) {
   const id = String(calendarId || '').trim().replace(/&+$/, '');
@@ -96,7 +109,12 @@ export async function syncOne(url, options) {
 
   // Normalize base64 ids to email form for the fetch only.
   // `url` stays raw everywhere else (DB key, ETag cache, calendars table).
-  const fetchUrl = fetchUrlForKey(url);
+  // On web (dev only — production web disables sync, see
+  // canSyncOnThisPlatform), rewrite to the Vite /ics proxy because browsers
+  // block direct cross-origin fetch to calendar.google.com (CORS).
+  const fetchUrl = Capacitor.isNativePlatform()
+    ? fetchUrlForKey(url)
+    : fetchUrlForKey(url).replace('https://calendar.google.com/calendar/ical', '/ics');
   if (import.meta.env?.DEV && fetchLogCount < 5) {
     fetchLogCount += 1;
     const rawId = (ICS_URL_RE.exec(url) || [])[2] || url;

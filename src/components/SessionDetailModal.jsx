@@ -11,6 +11,8 @@ const TYPE_BADGE = {
 };
 
 function parseRooms(roomsJson) {
+  // Web (Dexie) rows carry rooms as a real array; native (SQLite) as JSON.
+  if (Array.isArray(roomsJson)) return roomsJson;
   try {
     const rooms = JSON.parse(roomsJson);
     if (Array.isArray(rooms)) return rooms;

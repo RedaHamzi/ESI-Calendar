@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { notifyOffline } from "./toastStore";
+import { notifyOffline, notifyBrowserSyncUnavailable } from "./toastStore";
 
 // Global sync state. This store lives at the module level, so the sync
 // promise created by start() survives any component unmount — navigating
@@ -135,6 +135,9 @@ export const useSyncStore = create((set, get) => ({
       notifyOffline();
       return null;
     }
+    // NOTE: the production-web sync gate lives after the sync chunk loads
+    // (see below) so the in-progress flag written above is always cleared
+    // on that early return.
     try {
       localStorage.setItem(RANGE_KEY, chosen);
     } catch (e) {
@@ -156,7 +159,20 @@ export const useSyncStore = create((set, get) => ({
     // initial bundle (SyncPage lazy-loads it today for the same reason).
     let progressSeen = false;
     try {
-      const { syncAll, getCalendarUrls } = await import("../services/sync");
+      const { syncAll, getCalendarUrls, canSyncOnThisPlatform, BROWSER_SYNC_UNAVAILABLE } = await import("../services/sync");
+      // Production-web gate: no CORS proxy exists in prod builds, so every
+      // fetch would fail per-calendar. Explain via toast, clear the
+      // in-progress flag, leave status untouched, never call syncAll.
+      try {
+        if (!canSyncOnThisPlatform()) {
+          console.error("syncStore/start: browser sync unavailable in this build");
+          notifyBrowserSyncUnavailable(BROWSER_SYNC_UNAVAILABLE);
+          writeInProgress(null);
+          return null;
+        }
+      } catch (e) {
+        console.error(`syncStore/start: platform check failed, allowing sync: ${e && e.message ? e.message : e}`);
+      }
       const result = await syncAll(
         getCalendarUrls(),
         (done, total, currentUrl) => {
