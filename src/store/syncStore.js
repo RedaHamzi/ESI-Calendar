@@ -67,6 +67,13 @@ export const useSyncStore = create((set, get) => ({
   start: async (range) => {
     if (get().status === "running") return null;
     const chosen = range === "week" ? "week" : "month";
+    // Offline: refuse to start without touching the store status — the
+    // caller (SyncPage) shows the "Open Wi-Fi or mobile data first." toast.
+    // Mid-sync disconnects keep the existing per-URL error path in syncAll.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      console.error("syncStore/start: offline, sync not started");
+      return null;
+    }
     try {
       localStorage.setItem(RANGE_KEY, chosen);
     } catch (e) {
@@ -81,13 +88,6 @@ export const useSyncStore = create((set, get) => ({
       cancelRequested: false,
       lastRange: chosen,
     });
-
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      const msg = "You are offline. Connect to sync.";
-      console.error(`syncStore/start: ${msg}`);
-      set({ status: "error", lastError: msg });
-      return null;
-    }
 
     // Dynamic import keeps the heavy ICS/SQLite sync chunk out of the
     // initial bundle (SyncPage lazy-loads it today for the same reason).

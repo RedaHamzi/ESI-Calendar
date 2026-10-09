@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiRefreshCw, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import PullToRefresh from "../components/PullToRefresh";
+import Toast from "../components/Toast";
 import { classes, groups } from "../data/data";
 import {
   countSessions,
@@ -65,6 +66,8 @@ const SyncPage = ({ isDark, onBack }) => {
   const [overview, setOverview] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [notice, setNotice] = useState(null);
+  // Offline-tap feedback: exact-message toast, rendered below.
+  const [toast, setToast] = useState(null);
   // Sync state is global (useSyncStore) so progress survives navigation;
   // this page only reads the store, never owns the sync promise.
   const status = useSyncStore((s) => s.status);
@@ -140,7 +143,7 @@ const SyncPage = ({ isDark, onBack }) => {
   const runSync = async (nextRange) => {
     if (syncing) return;
     if (!online) {
-      setNotice("You are offline. Connect to sync.");
+      setToast({ id: Date.now(), message: "Open Wi-Fi or mobile data first." });
       return;
     }
     const chosen = nextRange || range;
@@ -190,15 +193,17 @@ const SyncPage = ({ isDark, onBack }) => {
               {RANGES.map(({ id, label, hint }) => {
                 const selected = range === id;
                 const n = countFor(id);
+                const offlineDisabled = !online && !syncing;
                 return (
                   <button
                     key={id}
                     type="button"
-                    disabled={syncing || !online}
+                    disabled={syncing}
+                    aria-disabled={!online}
                     onClick={() => runSync(id)}
                     aria-label={label}
                     aria-pressed={selected}
-                    className={`w-full min-h-[56px] px-4 py-3 rounded-xl border text-left active:scale-[0.97] transition-transform disabled:opacity-50 ${
+                    className={`w-full min-h-[56px] px-4 py-3 rounded-xl border text-left active:scale-[0.97] transition-transform disabled:opacity-50 ${offlineDisabled ? "opacity-50 cursor-not-allowed" : ""} ${
                       selected
                         ? isDark
                           ? "bg-indigo-600 border-indigo-600"
@@ -234,10 +239,11 @@ const SyncPage = ({ isDark, onBack }) => {
 
             <button
               type="button"
-              disabled={syncing || !online}
+              disabled={syncing}
+              aria-disabled={!online}
               onClick={() => runSync()}
               aria-label="Sync now"
-              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${
+              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${!online && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
                 isDark
                   ? "bg-indigo-600 text-white"
                   : "bg-indigo-500 text-white"
@@ -316,6 +322,14 @@ const SyncPage = ({ isDark, onBack }) => {
         </div>
         </PullToRefresh>
       </main>
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          onClose={() => setToast(null)}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 };
