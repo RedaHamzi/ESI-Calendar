@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { FiInfo } from "react-icons/fi";
+import { FiInfo, FiHeart } from "react-icons/fi";
 import { useLocation } from "wouter";
 import PageHeader from "../components/PageHeader";
 
@@ -75,6 +75,16 @@ const AboutPage = ({ isDark }) => {
                 Phone: 0555414204
               </a>
             </div>
+          </div>
+
+          <div className={`rounded-2xl p-4 border text-center ${cardClass}`}>
+            <p
+              className={`inline-flex items-center gap-1.5 text-sm ${
+                isDark ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              Made with <FiHeart size={14} className="text-rose-500" aria-hidden="true" /> by HAMZI Mohamed Reda
+            </p>
           </div>
         </div>
       </main>
