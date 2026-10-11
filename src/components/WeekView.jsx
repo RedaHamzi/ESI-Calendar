@@ -186,7 +186,7 @@ const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
     if (typeof onSessionClick === "function") {
       return (
         <button
-          key={`${s.uid}|${s.recurrence_id}`}
+          key={`${s.uid}|${s.recurrence_id}|${s.cal_url}`}
           type="button"
           onClick={() => onSessionClick(s)}
           aria-label={label}
@@ -198,7 +198,7 @@ const WeekView = ({ sessions, weekSundayMs, isDark, onSessionClick }) => {
       );
     }
     return (
-      <div key={`${s.uid}|${s.recurrence_id}`} style={style} className={blockClass}>
+      <div key={`${s.uid}|${s.recurrence_id}|${s.cal_url}`} style={style} className={blockClass}>
         {inner}
       </div>
     );

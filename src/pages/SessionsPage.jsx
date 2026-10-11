@@ -362,7 +362,7 @@ const SessionsPage = ({
                 const rooms = parseRooms(s.rooms);
                 return (
                   <button
-                    key={`${s.uid}|${s.recurrence_id}`}
+                    key={`${s.uid}|${s.recurrence_id}|${s.cal_url}`}
                     type="button"
                     onClick={() => openDetail(s)}
                     aria-label={`${s.subject || "Session"} ${s.session_type}`}

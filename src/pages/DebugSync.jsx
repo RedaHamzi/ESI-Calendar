@@ -380,7 +380,7 @@ export default function DebugSync() {
             <ul className="mt-3 space-y-2">
               {teacherResults.length === 0 && <li className="text-sm">No upcoming sessions.</li>}
               {teacherResults.map((s) => (
-                <li key={`${s.uid}|${s.recurrence_id}`} className="text-sm">
+                <li key={`${s.uid}|${s.recurrence_id}|${s.cal_url}`} className="text-sm">
                   <span>{formatStartsAt(s.starts_at)}</span>
                   {' — '}
                   <span>{s.subject || '(no subject)'}</span>

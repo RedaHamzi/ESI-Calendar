@@ -25,6 +25,15 @@ export { SYNC_RANGES, ACADEMIC_YEAR_BOUNDS, getSyncRangeBounds } from '../syncRa
 
 export const DB_NAME = 'esi_calendar';
 
+const SESSION_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_sessions_teacher ON sessions(teacher)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_type ON sessions(session_type)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_starts ON sessions(starts_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_url ON sessions(cal_url)`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_starts ON sessions(cal_url, starts_at)`,
+];
+
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS calendars (
     url           TEXT PRIMARY KEY,
@@ -33,6 +42,14 @@ const SCHEMA_STATEMENTS = [
     last_synced   INTEGER,
     event_count   INTEGER
   )`,
+  // p8a: PRIMARY KEY includes cal_url. It was (uid, recurrence_id), so one
+  // event synced from two calendars (the same UID lives in a group calendar
+  // AND a room calendar — 96 shared UIDs measured between A1 and 1CP A G01)
+  // overwrote itself via INSERT OR REPLACE: classes sync first, groups
+  // second, so group rows stole the classroom rows and offline classrooms
+  // read back empty. Per-calendar PK matches the Dexie backend (per-
+  // occurrence ++id rows) — both backends now keep one row per occurrence
+  // per calendar.
   `CREATE TABLE IF NOT EXISTS sessions (
     uid           TEXT NOT NULL,
     recurrence_id TEXT NOT NULL DEFAULT '',
@@ -47,14 +64,9 @@ const SCHEMA_STATEMENTS = [
     ends_at       INTEGER NOT NULL,
     raw_summary   TEXT,
     raw_location  TEXT,
-    PRIMARY KEY (uid, recurrence_id)
+    PRIMARY KEY (uid, recurrence_id, cal_url)
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_teacher ON sessions(teacher)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_type ON sessions(session_type)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_starts ON sessions(starts_at)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_calname ON sessions(calname)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_url ON sessions(cal_url)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_cal_starts ON sessions(cal_url, starts_at)`,
+  ...SESSION_INDEXES,
   // Materialized teacher list: SELECT DISTINCT over ~25k rows is slow on
   // device, so the post-sync rebuild keeps this table fresh and
   // listTeachers() becomes a cheap ordered scan.
@@ -117,7 +129,60 @@ async function openConnection() {
       if (!/duplicate column name/i.test(msg)) throw e;
     }
   }
+  await migrateSessionsPk(db);
   return db;
+}
+
+// One-time migration for the p8a PK change ((uid, recurrence_id) ->
+// (uid, recurrence_id, cal_url)). CREATE TABLE IF NOT EXISTS never alters
+// an existing table, so old devices keep the stealing PK until rebuilt
+// here. Runs after the ADD COLUMN backfills above, so the SELECT below
+// always sees the full column set. Idempotent: fresh installs already
+// have the new PK and return early. Surviving rows are preserved
+// (INSERT OR IGNORE); classroom rows stolen by earlier group syncs come
+// back on the next sync.
+async function migrateSessionsPk(db) {
+  let sql = '';
+  try {
+    const check = await db.query(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sessions'",
+    );
+    const rows = rowsOf(check);
+    sql = rows.length > 0 && rows[0].sql ? String(rows[0].sql) : '';
+  } catch (e) {
+    console.warn(`migrateSessionsPk: schema read skipped: ${e?.message || e}`);
+    return;
+  }
+  if (!/PRIMARY KEY\s*\(\s*uid\s*,\s*recurrence_id\s*\)/i.test(sql)) return;
+  try {
+    await db.execute(`CREATE TABLE IF NOT EXISTS sessions_new (
+      uid           TEXT NOT NULL,
+      recurrence_id TEXT NOT NULL DEFAULT '',
+      cal_url       TEXT NOT NULL,
+      calname       TEXT,
+      subject       TEXT,
+      session_type  TEXT,
+      teacher       TEXT,
+      rooms         TEXT,
+      is_online     INTEGER DEFAULT 0,
+      starts_at     INTEGER NOT NULL,
+      ends_at       INTEGER NOT NULL,
+      raw_summary   TEXT,
+      raw_location  TEXT,
+      PRIMARY KEY (uid, recurrence_id, cal_url)
+    )`);
+    await db.execute(
+      `INSERT OR IGNORE INTO sessions_new (${SESSION_COLUMNS.join(', ')}) SELECT ${SESSION_COLUMNS.join(', ')} FROM sessions`,
+    );
+    await db.execute('DROP TABLE sessions');
+    await db.execute('ALTER TABLE sessions_new RENAME TO sessions');
+    for (const ddl of SESSION_INDEXES) {
+      await db.execute(ddl);
+    }
+    console.log('[db] migrateSessionsPk: sessions PK now (uid, recurrence_id, cal_url)');
+  } catch (e) {
+    console.warn(`migrateSessionsPk: rebuild skipped: ${e?.message || e}`);
+  }
 }
 
 async function conn() {
