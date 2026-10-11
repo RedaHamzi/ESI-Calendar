@@ -4,6 +4,10 @@ import {
   FiHelpCircle,
   FiInfo,
   FiChevronRight,
+  FiSun,
+  FiMoon,
+  FiCloud,
+  FiCloudOff,
 } from "react-icons/fi";
 import { useLocation } from "wouter";
 import PageHeader from "../components/PageHeader";
@@ -33,7 +37,7 @@ const MENU = [
   },
 ];
 
-const MorePage = ({ isDark, setIsDark }) => {
+const MorePage = ({ isDark, setIsDark, isOffline, onPickScheduleMode }) => {
   const [, navigate] = useLocation();
 
   const cardClass = isDark
@@ -43,6 +47,17 @@ const MorePage = ({ isDark, setIsDark }) => {
   const subClass = isDark ? "text-purple-200" : "text-purple-600";
   const rowHover = isDark ? "hover:bg-white/10" : "hover:bg-purple-50";
   const chevronClass = isDark ? "text-slate-400" : "text-gray-400";
+  // Segmented controls mirror MiniNavigator: solid indigo when active.
+  const segWrap = isDark
+    ? "bg-slate-900/60 border-white/20"
+    : "bg-white border-purple-200";
+  const segActive = isDark ? "bg-indigo-600 text-white" : "bg-indigo-500 text-white";
+  const segInactive = isDark
+    ? "text-purple-100 hover:text-white"
+    : "text-purple-600 hover:text-purple-800";
+
+  const segBtn =
+    "flex-1 min-h-[44px] py-2.5 px-3 rounded-xl active:scale-[0.97] transition-all duration-200 font-medium text-sm";
 
   return (
     <div>
@@ -53,6 +68,81 @@ const MorePage = ({ isDark, setIsDark }) => {
       />
       <main className="content-area page-content px-4">
         <div className="max-w-md mx-auto space-y-4">
+          <div className={`rounded-2xl border p-4 ${cardClass}`}>
+            <h2 className={`font-semibold text-base ${textClass}`}>
+              Settings
+            </h2>
+            <div className="mt-3 space-y-4">
+              <div>
+                <p className={`font-medium text-sm ${textClass}`}>
+                  Appearance
+                </p>
+                <p className={`text-xs mt-0.5 ${subClass}`}>
+                  Switch the whole app between dark and light
+                </p>
+                <div
+                  role="group"
+                  aria-label="Appearance"
+                  className={`mt-2 flex items-center rounded-2xl p-1 border ${segWrap}`}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={!isDark}
+                    onClick={() => setIsDark(false)}
+                    className={`${segBtn} ${!isDark ? segActive : segInactive}`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <FiSun size={16} /> Light
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={isDark}
+                    onClick={() => setIsDark(true)}
+                    className={`${segBtn} ${isDark ? segActive : segInactive}`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <FiMoon size={16} /> Dark
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className={`font-medium text-sm ${textClass}`}>
+                  Schedule mode
+                </p>
+                <p className={`text-xs mt-0.5 ${subClass}`}>
+                  Live Google Calendar or the synced offline copy
+                </p>
+                <div
+                  role="group"
+                  aria-label="Schedule mode"
+                  className={`mt-2 flex items-center rounded-2xl p-1 border ${segWrap}`}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={!isOffline}
+                    onClick={() => onPickScheduleMode && onPickScheduleMode("online")}
+                    className={`${segBtn} ${!isOffline ? segActive : segInactive}`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <FiCloud size={16} /> Online
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={!!isOffline}
+                    onClick={() => onPickScheduleMode && onPickScheduleMode("offline")}
+                    className={`${segBtn} ${isOffline ? segActive : segInactive}`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <FiCloudOff size={16} /> Offline
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className={`rounded-2xl border overflow-hidden ${cardClass}`}>
             {MENU.map(({ id, label, description, Icon, path }) => (
               <button

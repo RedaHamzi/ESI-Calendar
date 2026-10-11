@@ -43,7 +43,6 @@ function Shell({
   toast,
   setToast,
   teacherFocus,
-  scheduleMode,
   effScheduleOffline,
   pickScheduleMode,
   goSync,
@@ -91,8 +90,6 @@ function Shell({
               isDark={isDark}
               setIsDark={setIsDark}
               isOffline={effScheduleOffline}
-              scheduleMode={scheduleMode}
-              onPickScheduleMode={pickScheduleMode}
               onGoSync={goSync}
             />
           </Route>
@@ -125,7 +122,12 @@ function Shell({
             <AboutPage isDark={isDark} />
           </Route>
           <Route path="/more">
-            <MorePage isDark={isDark} setIsDark={setIsDark} />
+            <MorePage
+              isDark={isDark}
+              setIsDark={setIsDark}
+              isOffline={effScheduleOffline}
+              onPickScheduleMode={pickScheduleMode}
+            />
           </Route>
         </Switch>
       </div>
@@ -306,7 +308,6 @@ function App() {
         setToast={setToast}
         teacherFocus={teacherFocus}
         setTeacherFocus={setTeacherFocus}
-        scheduleMode={scheduleMode}
         effScheduleOffline={effScheduleOffline}
         pickScheduleMode={pickScheduleMode}
       />

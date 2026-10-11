@@ -1,6 +1,5 @@
 /* eslint-disable react/prop-types */
 import { Suspense, lazy, useState } from "react";
-import { FiCloud, FiCloudOff } from "react-icons/fi";
 import SearchBar from "../components/SearchBar";
 import MiniNavigator from "../components/MiniNavigator";
 import PageHeader from "../components/PageHeader";
@@ -9,9 +8,9 @@ import PullToRefresh from "../components/PullToRefresh";
 
 const OfflineSchedule = lazy(() => import("../components/OfflineSchedule"));
 
-const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffline, onPickScheduleMode, onGoSync }) => {
-  const nextMode = isOffline ? "online" : "offline";
-  const modeLabel = isOffline ? "Offline" : "Online";
+// p8b: the online/offline toggle moved to More → Settings. This page only
+// reads the effective mode (isOffline) — no UI to change it here.
+const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffline, onGoSync }) => {
   // Iframe reload key (online refresh) + offline query tick. Kept separate
   // so an online refresh never touches the DB and an offline refresh never
   // hits the network.
@@ -32,29 +31,7 @@ const SchedulePage = ({ list, setList, type, setType, isDark, setIsDark, isOffli
       <PageHeader
         title="Schedule"
         isDark={isDark}
-        action={
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onPickScheduleMode && onPickScheduleMode(nextMode)}
-              aria-label={isOffline ? "Switch to online schedule" : "Switch to offline schedule"}
-              title={isOffline ? "Showing cached schedule" : "Showing live schedule"}
-              className={`flex items-center gap-1 min-h-[40px] min-w-[44px] px-2 py-1.5 rounded-xl text-xs font-semibold active:scale-[0.97] transition-transform ${
-                isOffline
-                  ? isDark
-                    ? "bg-indigo-600 text-white"
-                    : "bg-indigo-500 text-white"
-                  : isDark
-                    ? "text-purple-200"
-                    : "text-purple-600"
-              }`}
-            >
-              {isOffline ? <FiCloudOff size={16} /> : <FiCloud size={16} />}
-              {modeLabel}
-            </button>
-            <ThemeToggle isDark={isDark} setIsDark={setIsDark} />
-          </div>
-        }
+        action={<ThemeToggle isDark={isDark} setIsDark={setIsDark} />}
       />
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={handleRefresh}>
