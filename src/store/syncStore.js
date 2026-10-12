@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { notifyOffline } from "./toastStore";
+import { notifyOffline, useToastStore } from "./toastStore";
+import { listYears } from "../services/years";
 
 // Global sync state. This store lives at the module level, so the sync
 // promise created by start() survives any component unmount — navigating
@@ -8,9 +9,34 @@ import { notifyOffline } from "./toastStore";
 // out of scope: this only covers in-app navigation.
 
 const RANGE_KEY = "esi-sync-range";
+const YEARS_KEY = "esi-sync-years";
 const INCOMPLETE_KEY = "esi-sync-incomplete";
 const IN_PROGRESS_KEY = "esi-sync-in-progress";
 const IN_PROGRESS_STALE_MS = 7 * 24 * 3600 * 1000;
+
+function readStoredYears() {
+  try {
+    const raw = localStorage.getItem(YEARS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const known = new Set(listYears());
+    const kept = parsed.filter((y) => known.has(y));
+    if (kept.length === 0) return null;
+    return kept;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeStoredYears(years) {
+  try {
+    if (years == null) localStorage.removeItem(YEARS_KEY);
+    else localStorage.setItem(YEARS_KEY, JSON.stringify(years));
+  } catch (e) {
+    console.error(`syncStore/writeStoredYears: ${e && e.message ? e.message : e}`);
+  }
+}
 
 function readStoredRange() {
   try {
@@ -117,6 +143,9 @@ export const useSyncStore = create((set, get) => ({
       : interruptedLaunch
         ? storedInProgress.range
         : readStoredRange(),
+  // null = all years (default); otherwise the last-used year selection.
+  // Persisted in localStorage['esi-sync-years']; unknown values dropped on read.
+  lastYears: readStoredYears(),
   lastSummary: null,
 
   cancelRequested: false,
@@ -124,9 +153,22 @@ export const useSyncStore = create((set, get) => ({
 
   dismiss: () => set({ status: "idle", lastError: null, interrupted: false }),
 
-  start: async (range) => {
+  start: async (range, { years } = {}) => {
     if (get().status === "running") return null;
     const chosen = range === "week" ? "week" : "month";
+    // Empty-selection guard: never start a sync with no years picked.
+    // Status is left untouched; the Sync page also disables the button.
+    if (Array.isArray(years) && years.length === 0) {
+      console.error("syncStore/start: no years selected, sync not started");
+      try {
+        useToastStore.getState().showToast("Pick at least one year.");
+      } catch (e) {
+        console.error(`syncStore/start: toast failed: ${e && e.message ? e.message : e}`);
+      }
+      return null;
+    }
+    const chosenYears = years == null ? null : [...years];
+    writeStoredYears(chosenYears);
     // Central offline gate: no caller can bypass this. Shows the exact
     // offline toast, leaves status untouched, never calls syncAll.
     // Mid-sync disconnects keep the existing per-URL error path in syncAll.
@@ -152,6 +194,7 @@ export const useSyncStore = create((set, get) => ({
       lastSummary: null,
       cancelRequested: false,
       lastRange: chosen,
+      lastYears: chosenYears,
       interrupted: false,
     });
 
@@ -159,9 +202,10 @@ export const useSyncStore = create((set, get) => ({
     // initial bundle (SyncPage lazy-loads it today for the same reason).
     let progressSeen = false;
     try {
-      const { syncAll, getCalendarUrls } = await import("../services/sync");
+      const { syncAll, getCalendarUrls, getCalendarUrlsByYears } = await import("../services/sync");
+      const urls = chosenYears == null ? getCalendarUrls() : getCalendarUrlsByYears(chosenYears);
       const result = await syncAll(
-        getCalendarUrls(),
+        urls,
         (done, total, currentUrl) => {
           progressSeen = true;
           set({ progress: { done, total, currentLabel: currentUrl } });

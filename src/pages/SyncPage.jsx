@@ -19,9 +19,16 @@ import {
   calendarIdToIcsUrl,
   DEFAULT_SYNC_RANGE,
 } from "../services/sync";
+import {
+  allYears,
+  groupsByYear,
+  listYears,
+  sectionsByYear,
+} from "../services/years";
 import { useSyncStore } from "../store/syncStore";
 
 const RANGE_KEY = "esi-sync-range";
+const YEARS_KEY = "esi-sync-years";
 
 const RANGES = [
   { id: "month", label: "Sync one month", hint: "Current calendar month" },
@@ -75,6 +82,43 @@ const SyncPage = ({ isDark, onBack }) => {
   const [overview, setOverview] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [notice, setNotice] = useState(null);
+  // Year/cohort filter: default = every year checked (same behavior as the
+  // old full sync out of the box). Restored from the store's last-used
+  // selection when present; persisted to esi-sync-years on every change so
+  // a reload keeps the picks even before the next sync runs.
+  const ALL_YEARS = useMemo(() => allYears(), []);
+  const [years, setYears] = useState(() => {
+    try {
+      const stored = useSyncStore.getState().lastYears;
+      if (Array.isArray(stored)) {
+        const known = new Set(listYears());
+        const kept = stored.filter((y) => known.has(y));
+        if (kept.length > 0) return kept;
+      }
+    } catch (e) {
+      // fall through to the default
+    }
+    return allYears();
+  });
+  const persistYears = (next) => {
+    setYears(next);
+    try {
+      localStorage.setItem(YEARS_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.error(`SyncPage/persistYears: ${e && e.message ? e.message : e}`);
+    }
+  };
+  const toggleYear = (year) => {
+    if (syncing) return;
+    persistYears(
+      years.includes(year) ? years.filter((y) => y !== year) : [...years, year],
+    );
+  };
+  const toggleSelectAll = () => {
+    if (syncing) return;
+    persistYears(years.length === ALL_YEARS.length ? [] : [...ALL_YEARS]);
+  };
+  const allSelected = years.length === ALL_YEARS.length && ALL_YEARS.length > 0;
   // Sync state is global (useSyncStore) so progress survives navigation;
   // this page only reads the store, never owns the sync promise.
   const status = useSyncStore((s) => s.status);
@@ -82,6 +126,7 @@ const SyncPage = ({ isDark, onBack }) => {
   const lastError = useSyncStore((s) => s.lastError);
   const lastSummary = useSyncStore((s) => s.lastSummary);
   const lastCompletedAt = useSyncStore((s) => s.lastCompletedAt);
+  const lastYears = useSyncStore((s) => s.lastYears);
   const syncing = status === "running";
   const progress = syncing ? syncProgress : null;
   const summary = lastSummary;
@@ -160,7 +205,9 @@ const SyncPage = ({ isDark, onBack }) => {
     setNotice(null);
     setShowDetails(false);
     try {
-      await useSyncStore.getState().start(chosen);
+      // Range quick buttons reuse the current year selection, so
+      // "Sync one week" with only 1CP checked syncs just 1CP + rooms.
+      await useSyncStore.getState().start(chosen, { years });
       await loadStats();
     } catch (e) {
       console.error(`SyncPage/runSync: ${e && e.message ? e.message : e}`);
@@ -224,6 +271,61 @@ const SyncPage = ({ isDark, onBack }) => {
           )}
           <div className={`rounded-2xl p-4 border ${cardClass}`}>
             <p className={`text-sm font-semibold ${textClass}`}>
+              Years to sync
+            </p>
+            <div className="mt-3 space-y-1">
+              <label
+                className={`w-full min-h-[44px] px-2 py-2 rounded-xl flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-transform ${syncing ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = years.length > 0 && !allSelected;
+                  }}
+                  disabled={syncing}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all years"
+                  className="h-5 w-5 shrink-0 rounded border-slate-500 accent-indigo-600"
+                />
+                <span
+                  className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}
+                >
+                  Select all
+                </span>
+              </label>
+              {ALL_YEARS.map((year) => {
+                const sections = sectionsByYear(year).length;
+                const groupCount = groupsByYear(year).length - sections;
+                const checked = years.includes(year);
+                return (
+                  <label
+                    key={year}
+                    className={`w-full min-h-[44px] px-2 py-2 rounded-xl flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-transform ${syncing ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={syncing}
+                      onChange={() => toggleYear(year)}
+                      aria-label={`Sync ${year}`}
+                      className="h-5 w-5 shrink-0 rounded border-slate-500 accent-indigo-600"
+                    />
+                    <span
+                      className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}
+                    >
+                      {year}
+                    </span>
+                    <span className={`text-xs ml-auto ${mutedClass}`}>
+                      {sections} section{sections === 1 ? "" : "s"} · {groupCount} group{groupCount === 1 ? "" : "s"}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div className={`rounded-2xl p-4 border ${cardClass}`}>
+            <p className={`text-sm font-semibold ${textClass}`}>
               How much to keep offline
             </p>
             <div className="mt-3 space-y-2">
@@ -276,19 +378,24 @@ const SyncPage = ({ isDark, onBack }) => {
 
             <button
               type="button"
-              disabled={syncing}
-              aria-disabled={!online}
+              disabled={syncing || years.length === 0}
+              aria-disabled={!online || years.length === 0}
               onClick={() => runSync()}
-              aria-label="Sync now"
+              aria-label="Start syncing"
               className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${!online && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
                 isDark
                   ? "bg-indigo-600 text-white"
                   : "bg-indigo-500 text-white"
               }`}
             >
-              <FiRefreshCw size={18} />
-              {syncing ? "Sync in progress…" : "Sync now"}
+              <FiRefreshCw size={18} className={syncing ? "animate-spin" : ""} />
+              {syncing ? "Sync in progress…" : "Start syncing"}
             </button>
+            {years.length === 0 && !syncing && (
+              <p className={`text-xs text-center mt-2 ${mutedClass}`}>
+                Pick at least one year to sync.
+              </p>
+            )}
 
             {syncing && progress && progress.total > 0 && (
               <p className={`text-sm text-center mt-3 ${textClass}`}>
@@ -304,13 +411,13 @@ const SyncPage = ({ isDark, onBack }) => {
             <p className={`text-xs text-center mt-3 ${mutedClass}`}>
               {(lastCompletedAt || (overview && overview.lastSynced)) ? (
                 <>
-                  Last synced: {formatRelativeTime(lastCompletedAt || overview.lastSynced)}
+                  Last synced: {lastYears && lastYears.length > 0 ? `${lastYears.join(", ")} — ` : ""}{formatRelativeTime(lastCompletedAt || overview.lastSynced)}
                   {overview && overview.calendars
                     ? ` · ${overview.calendars} calendars`
                     : ""}
                 </>
               ) : (
-                "Not synced yet — tap Sync now to save schedules offline."
+                "Not synced yet — tap Start syncing to save schedules offline."
               )}
             </p>
           </div>

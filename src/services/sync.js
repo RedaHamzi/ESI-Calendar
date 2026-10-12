@@ -1,4 +1,5 @@
 import { classes, groups } from '../data/data';
+import { extractYear } from './years';
 import { parseIcs } from './ics';
 import { Capacitor } from '@capacitor/core';
 import { getCalendarMeta, upsertCalendarMeta, replaceSessionsForCalendar, getSyncRangeBounds, rebuildTeachersTable } from './storage/index.js';
@@ -102,6 +103,41 @@ export function getCalendarUrls() {
   for (const entry of groups) {
     const list = entry && Array.isArray(entry.src) ? entry.src : [];
     for (const id of list) {
+      if (typeof id === 'string' && id.trim()) {
+        ids.add(id.trim().replace(/&+$/, ''));
+      }
+    }
+  }
+  return [...ids].map((id) => calendarIdToIcsUrl(id));
+}
+
+/**
+ * Returns the unique ICS URL list for a sync.
+ * - years === null  → ALL calendars (same as getCalendarUrls(), unchanged).
+ * - years === []    → empty list (caller should prevent this).
+ * - years === [..]  → every group/section whose year is in the set,
+ *                     PLUS every classroom (rooms are year-agnostic and
+ *                     are always included).
+ *
+ * URLs come from the same ICS template as getCalendarUrls() and the
+ * result is deduplicated the same way.
+ */
+export function getCalendarUrlsByYears(years) {
+  if (years == null) return getCalendarUrls();
+  if (!Array.isArray(years) || years.length === 0) return [];
+  const wanted = new Set(years);
+  const ids = new Set();
+  // Classrooms are year-agnostic: always include every room.
+  for (const entry of classes) {
+    if (entry && typeof entry.src === 'string' && entry.src.trim()) {
+      ids.add(entry.src.trim().replace(/&+$/, ''));
+    }
+  }
+  // Groups + standalone section overlays whose year was selected.
+  for (const entry of groups) {
+    if (!entry || !Array.isArray(entry.src)) continue;
+    if (!wanted.has(extractYear(entry.title))) continue;
+    for (const id of entry.src) {
       if (typeof id === 'string' && id.trim()) {
         ids.add(id.trim().replace(/&+$/, ''));
       }
