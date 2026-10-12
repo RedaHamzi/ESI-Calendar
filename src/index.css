@@ -203,9 +203,10 @@ input:focus-visible {
    MUST stay after the media queries above: same specificity as
    .content-area, so source order decides which padding-bottom wins.
    60px = measured BottomTabBar button height (min-h-[60px] governs:
-   20px icon + 2px gap + ~14px label + 16px vertical padding ≈ 52px). */
+   20px icon + 2px gap + ~14px label + 16px vertical padding ≈ 52px).
+   +16px breathing room (p11a) so the last row never sits on the bar. */
 .page-content {
-  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Header specific spacing */
