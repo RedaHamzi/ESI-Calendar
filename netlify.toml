@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Route /api/ics → the function so both platforms expose the same URL.
+[[redirects]]
+  from = "/api/ics"
+  to = "/.netlify/functions/ics"
+  status = 200
+
+# SPA fallback — do NOT apply to /api/*
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
