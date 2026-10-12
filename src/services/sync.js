@@ -8,13 +8,16 @@ import { useAppStore } from '../store/appStore';
 export const FETCH_DELAY_MS = 300;
 export const DEFAULT_SYNC_RANGE = 'month';
 
-// Web sync availability: native always can; web only in dev (Vite /ics
-// proxy, see vite.config.js). Production web has no proxy and Google sends
-// no CORS headers, so sync is disabled there with a clear Sync-page
-// message instead of failing per-calendar.
+// Web sync availability: native fetches direct via CapacitorHttp;
+// web (dev AND prod) fetches through a same-origin proxy that sidesteps
+// CORS — the Vite /ics proxy in dev (see vite.config.js), the serverless
+// /api/ics function in prod (see api/ics.js + netlify.toml). Do NOT gate
+// on DEV anymore.
 export function canSyncOnThisPlatform() {
-  if (Capacitor.isNativePlatform()) return true;
-  return Boolean(import.meta.env?.DEV);
+  // Native: CapacitorHttp handles CORS.
+  // Web (dev or prod): the /api/ics serverless proxy (or Vite /ics
+  // dev proxy) handles CORS. Do NOT gate on DEV anymore.
+  return true;
 }
 
 export const BROWSER_SYNC_UNAVAILABLE =
@@ -69,6 +72,32 @@ export function fetchUrlForKey(rawUrl) {
   return `${m[1]}${normalizeCalendarId(m[2])}${m[3]}`;
 }
 
+// Pick the fetch URL for a raw (stable-key) Google ICS url by environment.
+// The DB key (`calendars.url`) always stays the raw Google URL — only the
+// fetch URL is rewritten — so the ETag cache survives across environments.
+export function toFetchUrl(googleUrl) {
+  if (Capacitor.isNativePlatform()) {
+    // Native: CapacitorHttp patches fetch, direct URL works.
+    return fetchUrlForKey(googleUrl);
+  }
+
+  // Web: rewrite to a same-origin proxy to bypass CORS.
+  const match = String(googleUrl || '').match(
+    /^https:\/\/calendar\.google\.com\/calendar\/ical\/([^/]+)\/public\/basic\.ics$/
+  );
+  if (!match) return String(googleUrl || ''); // should not happen
+  const id = normalizeCalendarId(match[1]);
+
+  if (import.meta.env.DEV) {
+    // Vite dev proxy (server.proxy['/ics'] in vite.config.js).
+    return `/ics/${id}/public/basic.ics`;
+  }
+
+  // Production: serverless function (both Vercel and Netlify expose
+  // this at /api/ics — see api/ics.js and netlify.toml).
+  return `/api/ics?id=${encodeURIComponent(id)}`;
+}
+
 let fetchLogCount = 0;
 
 export function getCalendarUrls() {
@@ -115,12 +144,10 @@ export async function syncOne(url, options) {
 
   // Normalize base64 ids to email form for the fetch only.
   // `url` stays raw everywhere else (DB key, ETag cache, calendars table).
-  // On web (dev only — production web disables sync, see
-  // canSyncOnThisPlatform), rewrite to the Vite /ics proxy because browsers
-  // block direct cross-origin fetch to calendar.google.com (CORS).
-  const fetchUrl = Capacitor.isNativePlatform()
-    ? fetchUrlForKey(url)
-    : fetchUrlForKey(url).replace('https://calendar.google.com/calendar/ical', '/ics');
+  // Web fetches go through a same-origin proxy (Vite /ics in dev,
+  // serverless /api/ics in prod) because browsers block direct
+  // cross-origin fetch to calendar.google.com (CORS). See toFetchUrl().
+  const fetchUrl = toFetchUrl(url);
   if (import.meta.env?.DEV && fetchLogCount < 5) {
     fetchLogCount += 1;
     const rawId = (ICS_URL_RE.exec(url) || [])[2] || url;
