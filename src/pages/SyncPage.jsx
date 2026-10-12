@@ -1,9 +1,10 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from "react";
-import { FiRefreshCw, FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { FiRefreshCw, FiChevronDown, FiChevronUp, FiAlertTriangle } from "react-icons/fi";
 import PageHeader from "../components/PageHeader";
 import PullToRefresh from "../components/PullToRefresh";
-import { notifyOffline, notifyBrowserSyncUnavailable } from "../store/toastStore";
+import { notifyOffline } from "../store/toastStore";
+import { Capacitor } from "@capacitor/core";
 import { classes, groups } from "../data/data";
 import {
   countSessions,
@@ -17,9 +18,6 @@ import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
   calendarIdToIcsUrl,
   DEFAULT_SYNC_RANGE,
-  canSyncOnThisPlatform,
-  BROWSER_SYNC_UNAVAILABLE,
-  BROWSER_SYNC_PROD_MESSAGE,
 } from "../services/sync";
 import { useSyncStore } from "../store/syncStore";
 
@@ -118,9 +116,6 @@ const SyncPage = ({ isDark, onBack }) => {
 
   const dbReady = useAppStore((s) => s.dbReady);
   const online = useOnlineStatus();
-  // Production web has no ICS proxy (CORS) — sync is unavailable there.
-  // Dev web syncs through the Vite /ics proxy; native always syncs.
-  const canSync = canSyncOnThisPlatform();
 
   const labelFor = (url) => titleByUrl.get(url) || url;
 
@@ -154,11 +149,6 @@ const SyncPage = ({ isDark, onBack }) => {
 
   const runSync = async (nextRange) => {
     if (syncing) return;
-    if (!canSync) {
-      // Reachable via pull-to-refresh when the buttons are disabled.
-      notifyBrowserSyncUnavailable(BROWSER_SYNC_UNAVAILABLE);
-      return;
-    }
     if (!online) {
       // Instant feedback; the store's start() gate re-checks and toasts
       // too, so no entry point can bypass the message.
@@ -192,16 +182,19 @@ const SyncPage = ({ isDark, onBack }) => {
       <main className="content-area page-content px-4">
         <PullToRefresh onRefresh={() => runSync()}>
         <div className="max-w-md mx-auto space-y-4">
-          {/* Production web: no ICS proxy exists, so sync cannot run here.
-              Buttons stay tappable (aria-disabled) so a tap explains via
-              toast instead of failing silently. */}
-          {!canSync && (
+          {/* Proxy missing: on hosts without the /api/ics serverless
+              function (e.g. plain static hosting) every fetch 404s and the
+              last sync ends with 100% failures. Advisory only — the buttons
+              below stay enabled. */}
+          {summary && summary.updated === 0 && summary.failed > 0 &&
+            !Capacitor.isNativePlatform() && !import.meta.env.DEV && (
             <div className={`rounded-2xl p-4 border ${cardClass}`}>
-              <h2 className={`font-semibold text-lg ${textClass}`}>
-                Browser sync unavailable
-              </h2>
-              <p className={`text-sm mt-1 ${subClass}`}>
-                {BROWSER_SYNC_PROD_MESSAGE}
+              <p className={`text-sm flex items-start gap-2 ${subClass}`}>
+                <FiAlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Sync failed: the server proxy is not reachable. Check the
+                  deployment configuration.
+                </span>
               </p>
             </div>
           )}
@@ -237,13 +230,13 @@ const SyncPage = ({ isDark, onBack }) => {
               {RANGES.map(({ id, label, hint }) => {
                 const selected = range === id;
                 const n = countFor(id);
-                const offlineDisabled = (!online || !canSync) && !syncing;
+                const offlineDisabled = !online && !syncing;
                 return (
                   <button
                     key={id}
                     type="button"
                     disabled={syncing}
-                    aria-disabled={!online || !canSync}
+                    aria-disabled={!online}
                     onClick={() => runSync(id)}
                     aria-label={label}
                     aria-pressed={selected}
@@ -284,10 +277,10 @@ const SyncPage = ({ isDark, onBack }) => {
             <button
               type="button"
               disabled={syncing}
-              aria-disabled={!online || !canSync}
+              aria-disabled={!online}
               onClick={() => runSync()}
               aria-label="Sync now"
-              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${(!online || !canSync) && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
+              className={`w-full min-h-[48px] mt-3 rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform disabled:opacity-50 ${!online && !syncing ? "opacity-50 cursor-not-allowed" : ""} ${
                 isDark
                   ? "bg-indigo-600 text-white"
                   : "bg-indigo-500 text-white"
